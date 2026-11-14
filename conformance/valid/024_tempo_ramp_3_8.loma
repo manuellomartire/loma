@@ -1,0 +1,11 @@
+loma 0.1
+tempo 120
+meter 3/8
+track P ch=1 program=0
+section s
+  bar C tempo=100>71
+    P: C4/4.
+  bar C len=/#7 tempo=90>60
+    P: C4/#7
+end
+play s

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LOMA",
+  "scopeName": "source.loma",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#header" },
+    { "include": "#definition" },
+    { "include": "#bar" },
+    { "include": "#trackline" },
+    { "include": "#keyword" },
+    { "include": "#content" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "(?:^|(?<=[ \\t]))#.*$",
+      "name": "comment.line.number-sign.loma"
+    },
+    "string": {
+      "match": "\"[^\"]*\"",
+      "name": "string.quoted.double.loma"
+    },
+    "header": {
+      "match": "^[ \\t]*(loma)[ \\t]+([0-9]+\\.[0-9]+)",
+      "captures": {
+        "1": { "name": "keyword.control.loma" },
+        "2": { "name": "constant.numeric.version.loma" }
+      }
+    },
+    "definition": {
+      "match": "^[ \\t]*(track|pattern|swing|voicing|section|play)[ \\t]+([A-Za-z][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.loma" },
+        "2": { "name": "entity.name.function.loma" }
+      }
+    },
+    "bar": {
+      "begin": "^[ \\t]*(bar)\\b",
+      "beginCaptures": { "1": { "name": "keyword.control.loma" } },
+      "end": "$",
+      "patterns": [
+        { "include": "#comment" },
+        { "match": "\\b(len|tempo)(?==)", "name": "variable.parameter.loma" },
+        { "match": "/#?[0-9]+(?:\\.\\.|\\.|t|q|x[0-9]+/[0-9]+)?", "name": "constant.numeric.duration.loma" },
+        { "match": "(?<![A-Za-z0-9])[A-G][#b]?[A-Za-z0-9#]*(?:\\^[0-9]+)?(?:/[A-G][#b]?)?", "name": "entity.name.type.chord.loma" },
+        { "match": "[0-9]+", "name": "constant.numeric.loma" }
+      ]
+    },
+    "trackline": {
+      "match": "^[ \\t]*([A-Za-z][A-Za-z0-9_]*)(?=(?:\\{[^}]*\\})?[ \\t]*:)",
+      "captures": { "1": { "name": "entity.name.tag.track.loma" } }
+    },
+    "keyword": {
+      "patterns": [
+        { "match": "^[ \\t]*(title|tempo|meter|key|at|repeat|end)\\b", "name": "keyword.control.loma" },
+        { "match": "\\b(use|from|drums)\\b", "name": "keyword.other.loma" },
+        { "match": "\\b(base|dur|grid|ch|program|transpose|swing|tempo)(?==)", "name": "variable.parameter.loma" }
+      ]
+    },
+    "content": {
+      "patterns": [
+        { "match": "\\bpedal[+-]", "name": "support.function.control.loma" },
+        { "match": "\\b(?:cc[0-9]+|bend)=-?[0-9]+(?:>-?[0-9]+)?", "name": "support.function.control.loma" },
+        { "match": "\\*[A-Za-z][A-Za-z0-9_]*", "name": "entity.name.function.voicing.loma" },
+        { "match": "/#?[0-9]+(?:\\.\\.|\\.|t|q|x[0-9]+/[0-9]+)?", "name": "constant.numeric.duration.loma" },
+        { "match": "\\b[A-G][#b]?-?[0-9]+(?![A-Za-z0-9_])", "name": "constant.language.pitch.loma" },
+        { "match": "\\bm[0-9]+\\b", "name": "constant.language.pitch.loma" },
+        { "match": "\\b(?:kick|snare|hat|ohat|crash|ride|tom1|tom2)\\b", "name": "constant.language.drum.loma" },
+        { "match": "\\br(?=/)", "name": "constant.language.rest.loma" },
+        { "match": "\\b([voda])(?==)", "name": "variable.parameter.loma" },
+        { "match": "\\b(?:leg|norm|stac)\\b", "name": "constant.language.articulation.loma" },
+        { "match": "[~|]", "name": "keyword.operator.loma" },
+        { "match": "[+-]?[0-9]+", "name": "constant.numeric.loma" }
+      ]
+    }
+  }
+}

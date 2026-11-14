@@ -1,0 +1,11 @@
+loma 0.1
+title "Città – 東京 ♪"
+tempo 61
+meter 4/4
+key F#m
+track P ch=16 program=127
+section s
+  bar C
+    P: C4/1
+end
+play s

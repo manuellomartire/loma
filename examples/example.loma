@@ -1,0 +1,34 @@
+loma 0.1
+title "Esempio originale"
+tempo 100
+meter 4/4
+key Cm
+
+track RH ch=1 program=0
+track LH ch=2 program=0
+
+pattern arp8 base=3 dur=/8 : 1 3 5 3 1 3 5 3
+
+section verse
+  bar Cm
+    RH{v=78}: Eb5/8 D5/8 C5/4 G4/4 r/4
+    LH{v=60}: use arp8
+  bar Ab
+    RH{v=78}: C5/4 Eb5/4 Ab4/2
+    LH{v=60}: use arp8
+  bar Bb
+    RH{v=80}: D5/8 F5/8 Bb4/4 F4/2
+    LH{v=60}: use arp8
+  bar Gm
+    RH{v=72}: G4/1{a=leg}
+    LH{v=55}: use arp8
+end
+
+section ending
+  bar Cm tempo=100>70
+    RH{v=70}: pedal+ [C4 Eb4 G4]/1{a=leg} pedal-
+    LH{v=55}: C2/1{a=leg}
+end
+
+play verse x2
+play ending

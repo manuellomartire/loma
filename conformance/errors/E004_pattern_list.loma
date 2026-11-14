@@ -1,0 +1,10 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern a base=3 dur=/4 : 1
+section s
+  bar C
+    P: use a,zz
+end
+play s

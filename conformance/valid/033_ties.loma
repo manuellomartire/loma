@@ -1,0 +1,15 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/2~ C4/4~ C4/4
+  bar C
+    P: r/2 [C4 E4]/2~
+  bar C
+    P: [E4 C4]/1
+  bar C
+    P: D4/4~{a=stac v=90} pedal+ D4/4 E4/4~{d=50} E4/4 pedal-
+end
+play s

@@ -1,0 +1,12 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern p base=3 dur=/4
+pattern q dur=/4 : 1
+pattern r2 base=3 dur=/4 :
+pattern t base=3 dur=/4 : ()
+pattern u base=3 dur=/4 : r{v=1}
+pattern w base=3 dur=/4 : x
+pattern y base=x dur=/4 : 1
+pattern z base=3 dur=4 : 1

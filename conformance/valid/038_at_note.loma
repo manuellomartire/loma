@@ -1,0 +1,13 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/1
+end
+play s
+at 3840 P E4 d=200 v=90
+at 0 P G9 d=1
+at 100 P C4 d=5000
+at 0 P C-1 d=10 v=1

@@ -1,0 +1,20 @@
+loma 0.3
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern b base=3 dur=/4 : 0 1 0- 0+
+section s
+  bar C/E
+    P: use b
+  bar C
+    P: use b
+  bar Am7/G
+    P: use b
+  bar C/Bb
+    P: use b
+  bar F#m/C#
+    P: use b
+  bar C/Cb
+    P: use b
+end
+play s

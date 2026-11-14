@@ -1,0 +1,5 @@
+loma 0.1
+track P ch=1
+section s
+end
+play s x3

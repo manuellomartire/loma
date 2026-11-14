@@ -1,0 +1,11 @@
+loma 0.1
+tempo 500
+track P ch=1
+section s
+  bar C tempo=100>2
+    P: C4/1
+  bar C tempo=3
+    P: C4/1
+  bar C tempo=401>90
+    P: C4/1
+end

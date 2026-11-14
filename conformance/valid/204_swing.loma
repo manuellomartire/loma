@@ -1,0 +1,16 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+swing sh grid=/8 : 0 40
+swing tr grid=/8t : 0 -5 +11
+swing neg grid=/2 : -100
+section s
+  bar C
+    P{swing=sh}: C4/8 D4/8{o=-10} E4/8 F4/8 G4/8t G4/8t G4/8t A4/4
+  bar C
+    P{swing=tr v=70 o=3}: C4/8t C4/8t C4/8t D4/16 D4/16 D4/8 E4/2
+  bar C F
+    P{swing=neg}: C4/2 | F4/2
+end
+play s

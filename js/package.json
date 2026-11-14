@@ -1,0 +1,12 @@
+{
+  "name": "loma-js",
+  "version": "1.0.0",
+  "description": "LOMA 1.0 compiler in JavaScript: the second implementation, used for conformance checking",
+  "license": "MIT",
+  "main": "loma.js",
+  "bin": { "loma-js": "loma.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "conformance": "python3 ../conformance/run.py --cmd \"node loma.js\""
+  }
+}

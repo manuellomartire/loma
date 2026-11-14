@@ -1,0 +1,27 @@
+{
+  "name": "loma-language",
+  "displayName": "LOMA",
+  "description": "Syntax highlighting for the LOMA music language (.loma)",
+  "version": "1.0.0",
+  "publisher": "loma",
+  "license": "MIT",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "loma",
+        "aliases": ["LOMA", "loma"],
+        "extensions": [".loma"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "loma",
+        "scopeName": "source.loma",
+        "path": "./syntaxes/loma.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+loma 0.1
+track P ch=1
+track P ch=2
+track 1bad ch=3
+track bar ch=4
+track a-b ch=5
+pattern p base=3 dur=/4 : 1
+pattern p base=3 dur=/4 : 1
+pattern use base=3 dur=/4 : 1
+section s
+end
+section s
+  bar C
+    P: C4/1
+end
+section tempo
+end

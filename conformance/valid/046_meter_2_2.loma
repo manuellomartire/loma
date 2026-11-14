@@ -1,0 +1,7 @@
+loma 0.1
+meter 2/2
+track P ch=1
+section s
+  bar C
+end
+play s x2

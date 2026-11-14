@@ -1,0 +1,9 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/2~ "held" cc1=5 bend=10 C4/2
+end
+play s

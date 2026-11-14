@@ -1,0 +1,13 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: cc11=0>120/2 C4/1
+  bar C
+    P: cc1=10>0/4 C4/1 cc1=5>5/#61
+  bar C
+    P: C4/1 cc7=0>127/1
+end
+play s

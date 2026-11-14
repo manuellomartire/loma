@@ -1,0 +1,10 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+banana 3
+section s
+  apple
+  bar C
+    P: C4/1
+end

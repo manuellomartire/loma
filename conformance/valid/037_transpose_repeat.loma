@@ -1,0 +1,20 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track D drums
+pattern p base=3 dur=/4 : 1 3 5 8
+section a
+  bar C
+    P: C4/2 [E4 G4]/2
+    D: kick/1
+  bar F
+    P: use p
+end
+section b
+  bar G7
+    P: use p
+end
+play a x2 transpose=+2
+play b transpose=-12
+play a

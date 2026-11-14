@@ -1,0 +1,151 @@
+loma 1.0
+title "Brano 3 - Faro"
+tempo 92
+meter 4/4
+key Am
+
+track Clar ch=1 program=71
+track Piano ch=2 program=4
+track Basso ch=3 program=35
+track Archi ch=4 program=48
+track Batt drums
+
+voicing largo base=3 : 1 5 10
+pattern comp base=3 dur=/8 : r (1 3 5) r (1 3 5) r (3 5 8) r (1 3 5){a=stac}
+pattern passo base=2 dur=/4 : 0 r/8 0/8 5 8
+swing dietro grid=/8 : 0 10
+
+section intro
+  bar Am9
+    Archi{v=40}: cc11=30>90/1 *largo/1{a=leg}
+    Piano{v=46 swing=dietro}: use comp
+    Batt{v=44}: hat/4 hat/4 hat/4 hat/4
+  bar Fmaj7
+    Archi{v=44}: cc11=90>60/1 *largo/1{a=leg}
+    Piano{v=48 swing=dietro}: use comp
+    Batt{v=46}: hat/4 hat/4 hat/4 hat/8 hat/8{v=34}
+  bar Dm7
+    Archi{v=46}: cc11=60>95/1 *largo/1{a=leg}
+    Piano{v=50 swing=dietro}: use comp
+    Basso{v=66}: use passo
+    Batt{v=50}: kick/4 hat/4 hat/4 hat/4
+  bar E7sus4
+    Clar{v=70}: r/2. E5/8{o=-6} G5/8
+    Archi{v=50}: cc11=95>70/1 *largo/1{a=leg}
+    Piano{v=54 swing=dietro}: use comp
+    Basso{v=70}: use passo
+    Batt{v=56}: kick/4 hat/4 snare/4 tom1/8 tom2/8
+end
+
+section tema
+  bar Am tempo=92
+    Clar{v=82}: "tema" A5/4.{o=-8} G5/8 E5/4 C5/4
+    Piano{v=56 swing=dietro}: use comp
+    Basso{v=74}: use passo
+    Archi{v=42}: cc11=80 *largo/1{a=leg}
+    Batt{v=70}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 kick/8
+  bar F
+    Clar{v=78}: A4/4 C5/8 D5/8 C5/2{a=leg}
+    Piano{v=54 swing=dietro}: use comp
+    Basso{v=72}: use passo
+    Archi{v=42}: *largo/1{a=leg}
+    Batt{v=68}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 hat/8
+  bar C/E
+    Clar{v=80}: E5/4.{o=-6} D5/8{a=stac} C5/4 G4/4
+    Piano{v=56 swing=dietro}: use comp
+    Basso{v=74}: use passo
+    Archi{v=44}: *largo/1{a=leg}
+    Batt{v=70}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 kick/8
+  bar G
+    Clar{v=76}: B4/2 D5/4 r/8 E5/8{o=-10}
+    Piano{v=54 swing=dietro}: use comp
+    Basso{v=72}: use passo
+    Archi{v=44}: *largo/1{a=leg}
+    Batt{v=68}: kick/4 hat/8 hat/8{v=50} snare/4 tom1/8 tom2/8
+  bar Am
+    Clar{v=86}: A5/4.{o=-8} G5/8 E5/4 A5/4
+    Piano{v=58 swing=dietro}: use comp
+    Basso{v=76}: use passo
+    Archi{v=46}: *largo/1{a=leg}
+    Batt{v=72}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 kick/8
+  bar F
+    Clar{v=90}: C6/4 A5/8 F5/8 A5/2
+    Piano{v=60 swing=dietro}: use comp
+    Basso{v=78}: use passo
+    Archi{v=48}: *largo/1{a=leg}
+    Batt{v=74}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 hat/8
+  bar Dm7
+    Clar{v=84}: F5/8t E5/8t D5/8t F5/4 A5/2
+    Piano{v=58>50 swing=dietro}: use comp
+    Basso{v=74}: use passo
+    Archi{v=46}: *largo/1{a=leg}
+    Batt{v=70}: kick/4 hat/8 hat/8{v=50} snare/4 hat/8 kick/8
+  bar E7 tempo=92>76
+    Clar{v=78>60}: G#5/2{a=leg} E5/2{a=leg}
+    Piano{v=50>40}: use comp
+    Basso{v=70>56}: use passo
+    Archi{v=44}: cc11=80>50/1 *largo/1{a=leg}
+    Batt{v=66>40}: kick/4 hat/4 snare/4 crash/4
+end
+
+section ponte
+  repeat 2
+    bar Fmaj7
+      Clar{v=62}: E5/2. C5/4
+      Piano{v=46}: pedal+ [F3 C4{o=12} E4{o=24} A4{o=36}]/1{a=leg} pedal-
+      Basso{v=60}: F1/2. C2/4
+      Archi{v=40}: cc11=50>85/1 *largo/1{a=leg}
+      Batt{v=40}: ride/4 ride/4 ride/4 ride/8 ride/8{v=30}
+    bar Em7
+      Clar{v=60}: D5/2. B4/4
+      Piano{v=44}: pedal+ [E3 B3{o=12} D4{o=24} G4{o=36}]/1{a=leg} pedal-
+      Basso{v=58}: E1/2. B1/4
+      Archi{v=40}: cc11=85>55/1 *largo/1{a=leg}
+      Batt{v=40}: ride/4 ride/4 ride/4 ride/8 ride/8{v=30}
+    bar Dm7
+      Clar{v=64}: C5/2 A4/4 C5/4
+      Piano{v=46}: pedal+ [D3 A3{o=12} C4{o=24} F4{o=36}]/1{a=leg} pedal-
+      Basso{v=60}: D1/2. A1/4
+      Archi{v=42}: cc11=55>90/1 *largo/1{a=leg}
+      Batt{v=42}: ride/4 ride/4 ride/4 ride/8 ride/8{v=30}
+    bar Cmaj7^1
+      Clar{v=58}: B4/1{a=leg}
+      Piano{v=44}: pedal+ [E3 G3{o=12} B3{o=24} C4{o=36}]/1{a=leg} pedal-
+      Basso{v=56}: E1/1{a=leg}
+      Archi{v=42}: cc11=90>50/1 *largo/1{a=leg}
+      Batt{v=40}: ride/4 ride/4 ride/4 snare/8{v=34} snare/8{v=44}
+  end
+end
+
+section finale
+  bar Am
+    Clar{v=72}: A5/2 E5/2
+    Piano{v=50}: use comp
+    Basso{v=64}: use passo
+    Archi{v=44}: *largo/1{a=leg}
+    Batt{v=54}: kick/4 hat/4 snare/4 hat/4
+  bar F
+    Clar{v=68}: F5/2 C5/2
+    Piano{v=46}: use comp
+    Basso{v=60}: use passo
+    Archi{v=42}: *largo/1{a=leg}
+    Batt{v=48}: kick/4 hat/4 snare/4 hat/4
+  bar E7 tempo=76>66
+    Clar{v=66}: E5/4 G#5/4 B5/2{a=leg}
+    Piano{v=44}: pedal+ [E3 B3{o=10} D4{o=20} G#4{o=30}]/1{a=leg} pedal-
+    Basso{v=56}: E1/1{a=leg}
+    Archi{v=40}: cc11=70>95/1 *largo/1{a=leg}
+    Batt{v=42}: hat/4 hat/4 hat/4 hat/4
+  bar Am tempo=66>50
+    Clar{v=60}: bend=0 A5/1{a=leg}
+    Piano{v=40}: pedal+ [A2 E3{o=14} A3{o=28} C4{o=42} E4{o=56}]/1{a=leg} pedal-
+    Basso{v=52}: A1/1{a=leg}
+    Archi{v=38}: cc11=95>20/1 *largo/1{a=leg}
+    Batt{v=46}: crash/1
+end
+
+play intro
+play tema
+play ponte
+play tema
+play finale

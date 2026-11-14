@@ -1,0 +1,8 @@
+loma 0.1
+key G#m
+track P ch=1
+section s
+  bar C
+    P: C4/1
+end
+play s

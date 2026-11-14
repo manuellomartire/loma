@@ -1,0 +1,13 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track D drums
+section s
+  bar C
+    D{v=100}: kick/4 hat/8 hat/8{v=60} snare/4 [kick ohat]/8 tom1/16 tom2/16
+    P: C2/1
+  bar C
+    D: crash/2 ride/2
+end
+play s

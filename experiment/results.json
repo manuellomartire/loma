@@ -1,0 +1,92 @@
+[
+  {
+    "attempt_details": [
+      {
+        "errors": [],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "bars": 8,
+    "bars_by_length": 8,
+    "deterministic": true,
+    "dynamics": true,
+    "events_json_bytes": 12151,
+    "final_valid": true,
+    "instruments": 2,
+    "loma_bytes": 873,
+    "loma_lines": 44,
+    "midi_bytes": 917,
+    "model": "reference",
+    "notes": 88,
+    "offsets": true,
+    "patterns": true,
+    "piece": "brano1",
+    "sections": 2,
+    "sha256": "01d4d64ffc3306d09551d5095e1724e9485510a5e9caa40ea8170446d634588f",
+    "tempo_change": false,
+    "two_chord_bars": true,
+    "unmet_requirements": [],
+    "valid_at_first_attempt": true
+  },
+  {
+    "attempt_details": [
+      {
+        "errors": [],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "bars": 16,
+    "bars_by_length": 16,
+    "deterministic": true,
+    "dynamics": true,
+    "events_json_bytes": 43287,
+    "final_valid": true,
+    "instruments": 3,
+    "loma_bytes": 2062,
+    "loma_lines": 79,
+    "midi_bytes": 2854,
+    "model": "reference",
+    "notes": 303,
+    "offsets": true,
+    "patterns": true,
+    "piece": "brano2",
+    "sections": 3,
+    "sha256": "b54a38e5739140b8f950636dbd7145e0978cd70c919d5a30040d91cad0d877e2",
+    "tempo_change": true,
+    "two_chord_bars": true,
+    "unmet_requirements": [],
+    "valid_at_first_attempt": true
+  },
+  {
+    "attempt_details": [
+      {
+        "errors": [],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "bars": 32,
+    "bars_by_length": 32,
+    "deterministic": true,
+    "dynamics": true,
+    "events_json_bytes": 148719,
+    "final_valid": true,
+    "instruments": 5,
+    "loma_bytes": 4748,
+    "loma_lines": 151,
+    "midi_bytes": 9094,
+    "model": "reference",
+    "notes": 746,
+    "offsets": true,
+    "patterns": true,
+    "piece": "brano3",
+    "sections": 4,
+    "sha256": "d36d8234ef408c9825baed5ef7adfafd47ece5cd08832cd2ebc4ee2d74928c1c",
+    "tempo_change": true,
+    "two_chord_bars": false,
+    "unmet_requirements": [],
+    "valid_at_first_attempt": true
+  }
+]

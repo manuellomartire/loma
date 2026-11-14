@@ -1,0 +1,6 @@
+loma 0.3
+tempo 120
+meter 4/4
+track P ch=1 program=0
+voicing bad base=3 : 13
+voicing bad2 base=3 : 2

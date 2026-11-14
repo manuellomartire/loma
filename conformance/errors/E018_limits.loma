@@ -1,0 +1,11 @@
+loma 0.1
+meter 4/3
+track P ch=1
+section a
+  bar C
+    P: C4/1
+end
+play a x1001
+play a x0
+at 268435456 P C4 d=1
+at 99999999999999999999 P C4 d=1

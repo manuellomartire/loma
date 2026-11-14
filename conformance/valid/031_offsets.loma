@@ -1,0 +1,11 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/4{o=-10} D4/4{o=7} E4/4{o=-500} F4/4{o=+3}
+  bar C
+    P{o=5}: C4/2 D4/2{o=-5}
+end
+play s

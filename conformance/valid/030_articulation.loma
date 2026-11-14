@@ -1,0 +1,13 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/4 C4/4{a=leg} C4/4{a=stac} C4/4{d=100}
+  bar C
+    P{a=stac}: D4/64 D4/64{a=norm} r/32 E4/#1 E4/#1{a=stac} r/#2 F4/2.. r/#116
+  bar C
+    P: G4/16.{d=1} r/32 r/32t r/32t r/32t A4/4.. r/4 r/8
+end
+play s

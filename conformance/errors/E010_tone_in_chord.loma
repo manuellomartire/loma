@@ -1,0 +1,12 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern p base=3 dur=/1 : 14
+section s
+  bar C
+    P: use p
+  bar C7
+    P: use p
+end
+play s

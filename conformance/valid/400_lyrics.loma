@@ -1,0 +1,13 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track D drums
+section s
+  bar C
+    P: "Do re" C4/2 "mi" "fa" C4/2
+  bar C
+    P: "a | b # c: d{e} [x] più 東京" C4/1 "end"
+    D: "boom" kick/1
+end
+play s

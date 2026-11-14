@@ -1,0 +1,12 @@
+# first line comment
+loma 0.1 # header
+	tempo	90	# tabs
+meter 4/4
+track P ch=1
+section s # c
+	bar C#m	# chord with a sharp, not a comment
+		P{v=64	o=1}:	F#3/2	[C#4	E4]/2 # tail
+  # full line
+end
+
+play s	

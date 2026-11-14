@@ -1,0 +1,11 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C F len=/#7
+    P: C4/#7
+  bar C F G len=/#1000
+    P: C4/#1000
+end
+play s

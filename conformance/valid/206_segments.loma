@@ -1,0 +1,20 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern p base=3 dur=/4 : 1 3
+pattern t3 base=3 dur=/4t : 1 5
+section s
+  bar C F
+    P: C4/2 | F4/4 A4/4
+  bar C F
+    P: use p | C4/2
+  bar C F G
+    P: C4/4t C4/4t |
+       use t3 |
+       r/2t
+  bar C F
+    P: C4/2 |
+       F4/2
+end
+play s

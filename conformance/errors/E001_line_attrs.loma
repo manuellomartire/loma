@@ -1,0 +1,17 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/1{v=1>9}
+  bar C
+    P: C4/1{swing=x}
+  bar C
+    P{v=0>9}: C4/1
+  bar C
+    P{v=1>}: C4/1
+  bar C
+    P{swing=1x}: C4/1
+end
+play s

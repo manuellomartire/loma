@@ -1,0 +1,9 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/1 cc7=0>1/#268435455
+end
+play s

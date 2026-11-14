@@ -1,0 +1,79 @@
+loma 0.2
+title "Brano 2 - Mulino"
+tempo 104
+meter 4/4
+key D
+
+track Flauto ch=1 program=73
+track Piano ch=2 program=0
+track Basso ch=3 program=32
+
+# accompagnamento: mezza battuta per accordo (480 tick), due varianti alternate
+pattern comp base=3 dur=/8 : (1 5) 8 (3 5) 8
+pattern compB from comp : 4=10{v=62}
+# basso: un accordo = due quarti (960 tick)
+pattern walk base=2 dur=/4 : 1 5
+pattern walkUp from walk : 2=8
+swing lieve grid=/8 : 0 14
+
+section a
+  bar D Bm
+    Flauto{v=76}: F#5/4 A5/8 F#5/8 D5/4. B4/8
+    Piano{v=52>60 swing=lieve}: use comp,compB
+    Basso{v=70}: use walk
+  bar G A
+    Flauto{v=74}: B4/4 D5/4 C#5/2{a=leg}
+    Piano{v=60>52 swing=lieve}: use comp,compB
+    Basso{v=70}: use walk | use walkUp
+  bar D Bm
+    Flauto{v=78}: F#5/4 A5/8 B5/8 A5/4.{o=-6} F#5/8
+    Piano{v=54>62 swing=lieve}: use comp,compB
+    Basso{v=72}: use walk
+  bar Em A7
+    Flauto{v=72}: G5/4 E5/4 E5/2{a=leg}
+    Piano{v=62>50 swing=lieve}: use comp,compB
+    Basso{v=68}: use walkUp | use walk
+end
+
+section b
+  bar G D
+    Flauto{v=84}: B5/4 G5/4 A5/4 F#5/4
+    Piano{v=64 swing=lieve}: use compB,comp
+    Basso{v=78}: use walk
+  bar Em Bm
+    Flauto{v=82}: G5/8 F#5/8 E5/4 D5/2
+    Piano{v=62 swing=lieve}: use compB,comp
+    Basso{v=76}: use walk
+  bar G D
+    Flauto{v=86}: B5/4.{o=-8} A5/8 A5/4 F#5/4
+    Piano{v=66 swing=lieve}: use compB,comp
+    Basso{v=78}: use walk | use walkUp
+  bar A7
+    Flauto{v=70>92}: E5/2 C#5/4{a=stac} r/4
+    Piano{v=56>80}: use comp,compB
+    Basso{v=66>84}: A1/4 C#2/4 E2/4 G2/4
+end
+
+section coda
+  bar D Bm
+    Flauto{v=78}: F#5/4 A5/8 F#5/8 D5/4. B4/8
+    Piano{v=56 swing=lieve}: use comp,compB
+    Basso{v=70}: use walk
+  bar G A7
+    Flauto{v=74}: B4/4 D5/4 E5/4 C#5/4
+    Piano{v=54 swing=lieve}: use comp,compB
+    Basso{v=68}: use walk
+  bar D G
+    Flauto{v=70}: D5/2 B4/2
+    Piano{v=50}: use comp
+    Basso{v=64}: use walk
+  bar D tempo=104>84
+    Flauto{v=64}: D5/1{a=leg}
+    Piano{v=46}: pedal+ [D3 A3{o=10} D4{o=20} F#4{o=30}]/1{a=leg} pedal-
+    Basso{v=58}: D2/1{a=leg}
+end
+
+play a
+play b
+play a
+play coda

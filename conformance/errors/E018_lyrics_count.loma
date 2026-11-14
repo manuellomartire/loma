@@ -1,0 +1,11 @@
+loma 1.0
+track P ch=1
+section s
+  repeat 1000
+    repeat 100
+      bar C
+        P: "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" C4/1
+    end
+  end
+end
+play s

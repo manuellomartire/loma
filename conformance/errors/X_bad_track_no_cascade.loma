@@ -1,0 +1,10 @@
+loma 0.1
+track A ch=1
+track B ch=1
+section s
+  bar C
+    B: C4/1
+    A: C4/1
+end
+play s
+at 0 B C4 d=1

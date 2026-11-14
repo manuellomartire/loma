@@ -1,0 +1,44 @@
+loma 0.1
+title "Brano 1 - Lanterna"
+tempo 88
+meter 4/4
+key Am
+
+track RH ch=1 program=0
+track LH ch=2 program=0
+
+pattern arp8 base=2 dur=/8 : 1 5 8 5 3 5 8 5
+pattern half base=2 dur=/8 : 1 5 8 5
+
+section theme
+  bar Am
+    RH{v=76}: pedal+ E5/4 C5/8 D5/8 E5/4{v=84} A4/4
+    LH{v=58}: use arp8
+  bar F
+    RH{v=74}: C5/4 A4/8 C5/8 F5/2{a=leg}
+    LH{v=58}: use arp8
+  bar C
+    RH{v=78}: E5/4.{o=-6} D5/8{a=stac} C5/4 G4/4
+    LH{v=56}: use arp8
+  bar G
+    RH{v=72}: D5/2{a=leg} B4/4 r/4 pedal-
+    LH{v=54}: use arp8
+end
+
+section answer
+  bar Am
+    RH{v=80}: pedal+ E5/4 G5/8 E5/8 C5/4{v=88} A4/4
+    LH{v=60}: use arp8
+  bar F
+    RH{v=82}: A5/4.{o=-8} G5/8 F5/4 C5/4
+    LH{v=60}: use arp8
+  bar G Em
+    RH{v=78}: D5/4 G5/4 E5/2{a=leg}
+    LH{v=56}: use half
+  bar Am
+    RH{v=66}: [A4 C5 E5]/1{a=leg} pedal-
+    LH{v=50}: [A2 E3]/1{a=leg}
+end
+
+play theme
+play answer

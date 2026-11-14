@@ -1,0 +1,8 @@
+loma 0.1
+track A
+track B ch=0
+track C ch=17
+track D ch=1 program=128
+track E ch=x
+track F ch=2 vol=3
+track G drums ch=3

@@ -1,0 +1,21 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: cc128=1 C4/1
+  bar C
+    P: cc7=128 C4/1
+  bar C
+    P: bend=8192 C4/1
+  bar C
+    P: bend=-8193 C4/1
+  bar C
+    P: cc7=1>2 C4/1
+  bar C
+    P: cc7=1>200/4 C4/1
+  bar C
+    P: cc7 C4/1
+end
+play s

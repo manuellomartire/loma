@@ -1,0 +1,17 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/1
+end
+play s
+at 100 P cc7=90
+at 100 P bend=-100
+at 100 P cc7=91
+at 200 P "la"
+at 960 tempo=90
+at 0 tempo=100
+at 5000 tempo=4
+at 5000 P cc64=0

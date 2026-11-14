@@ -1,0 +1,13 @@
+loma 0.1
+track A ch=1
+track B ch=2 program=40
+track D drums
+section s
+  bar C
+    B: C4/1
+end
+section unused
+  bar F
+    A: F4/1
+end
+play s

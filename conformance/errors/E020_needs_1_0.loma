@@ -1,0 +1,13 @@
+loma 0.3
+track P ch=1
+section s
+  bar C
+    P: "la" C4/1
+  bar C
+    P: m60/1
+end
+play s
+at 0 tempo=90
+at 0 P cc7=1
+at 0 P bend=1
+at 0 P "x"

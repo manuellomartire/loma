@@ -1,0 +1,28 @@
+loma 0.1
+track T1 ch=1 program=7
+track T2 ch=2 program=14
+track T3 ch=3 program=21
+track T4 ch=4 program=28
+track T5 ch=5 program=35
+track T6 ch=6 program=42
+track T7 ch=7 program=49
+track T8 ch=8 program=56
+track T9 ch=9 program=63
+track T11 ch=11 program=77
+track T12 ch=12 program=84
+track T13 ch=13 program=91
+track T14 ch=14 program=98
+track T15 ch=15 program=105
+track T16 ch=16 program=112
+track K drums
+section s
+  bar C
+    T16{v=112}: C0/1
+    T3{v=21}: C3/1
+    T1{v=7}: C1/1
+    T9{v=63}: C1/1
+    T11{v=77}: C3/1
+    T2{v=14}: C2/1
+    K: kick/1
+end
+play s

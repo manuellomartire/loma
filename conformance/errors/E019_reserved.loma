@@ -1,0 +1,11 @@
+loma 1.0
+track bar ch=1
+track use ch=2
+track r ch=3
+track play ch=4
+track repeat ch=5
+track drums ch=6
+track end ch=7
+track at ch=8
+swing swing grid=/8 : 0
+voicing from base=3 : 1

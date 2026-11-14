@@ -1,0 +1,1 @@
+[{"bpm":60,"tick":0,"type":"tempo"},{"ch":1,"pitch":60,"tick":0,"track":"P","type":"note_on","vel":80},{"bpm":200,"tick":480,"type":"tempo"},{"bpm":65,"tick":960,"type":"tempo"},{"bpm":67,"tick":1440,"type":"tempo"},{"ch":1,"pitch":60,"tick":1728,"track":"P","type":"note_off"},{"bpm":50,"tick":1920,"type":"tempo"}]

@@ -1,0 +1,12 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track D drums
+section s
+  bar C
+    P: m60/2 [m0 m127]/2
+    D: m35/2 [kick m0]/2
+end
+play s
+at 5 D m81 d=3

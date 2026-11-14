@@ -1,0 +1,15 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar
+    P: C4/1
+  bar C len=4
+    P: C4/1
+  bar C tempo=x
+    P: C4/1
+  bar C foo=1
+    P: C4/1
+end
+play s

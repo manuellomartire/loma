@@ -1,0 +1,13 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern p base=9 dur=/1 : 12
+pattern q base=-1 dur=/1 : 1
+section s
+  bar G
+    P: use p
+  bar Cb
+    P: use q
+end
+play s

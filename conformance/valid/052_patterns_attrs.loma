@@ -1,0 +1,10 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+pattern p base=3 dur=/8 : 1{v=100} 3{a=stac} 5{o=-9} 3{d=500} (1 5){v=40 a=leg} r r/8 8/8
+section s
+  bar Am
+    P{v=70 a=leg o=2}: use p
+end
+play s

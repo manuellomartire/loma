@@ -1,0 +1,11 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C tempo=60>70
+    P: C4/1
+end
+play s
+at 480 tempo=200
+at 1920 tempo=50

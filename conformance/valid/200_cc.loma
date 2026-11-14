@@ -1,0 +1,11 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track D drums
+section s
+  bar C
+    P: cc7=100 cc10=0 C4/2 cc7=64 cc127=127 C4/2
+    D: cc7=90 kick/1
+end
+play s

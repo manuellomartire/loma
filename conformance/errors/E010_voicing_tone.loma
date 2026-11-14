@@ -1,0 +1,10 @@
+loma 0.3
+tempo 120
+meter 4/4
+track P ch=1 program=0
+voicing v base=3 : 7
+section s
+  bar C
+    P: *v/1
+end
+play s

@@ -1,0 +1,9 @@
+loma 0.2
+tempo 120
+meter 4/4
+track P ch=1 program=0
+swing a grid=/8
+swing b : 0
+swing c grid=/8 :
+swing d grid=/8 : x
+swing e grid=8 : 0

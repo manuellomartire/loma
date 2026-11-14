@@ -1,0 +1,21 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P: C4/1{x=1}
+  bar C
+    P: C4/1{v=0}
+  bar C
+    P: C4/1{v=128}
+  bar C
+    P: C4/1{d=0}
+  bar C
+    P: C4/1{a=soft}
+  bar C
+    P: C4/1{v}
+  bar C
+    P: C4/1{v=1
+end
+play s

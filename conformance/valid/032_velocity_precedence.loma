@@ -1,0 +1,11 @@
+loma 0.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+section s
+  bar C
+    P{v=50}: [C4 E4{v=70} G4]/2{v=60} A4/4 B4/4{v=1}
+  bar C
+    P: [C4{v=127 o=-3 a=leg} E4{d=7}]/1
+end
+play s

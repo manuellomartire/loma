@@ -1,0 +1,18 @@
+loma 0.3
+tempo 120
+meter 4/4
+track P ch=1 program=0
+voicing open base=3 : 1 5 10
+voicing shell base=3 : 0 7 10
+voicing lo base=2 : 1-
+section s
+  bar Cm F
+    P{v=64}: *open/2 *open/2
+  bar Cm7 F7/A
+    P: *shell/2{v=50} *shell/2
+  bar G
+    P: *open/2~ *open/2
+  bar C F G
+    P: *lo/1{a=leg}
+end
+play s transpose=+1

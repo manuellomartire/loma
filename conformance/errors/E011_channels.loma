@@ -1,0 +1,12 @@
+loma 0.1
+track A ch=1
+track B ch=1
+track C ch=10
+track D drums
+track E drums
+section s
+  bar C
+    B: C4/1
+    C: C4/1
+    E: kick/1
+end
