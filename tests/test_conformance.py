@@ -73,7 +73,7 @@ class Reference(unittest.TestCase):
 
     def test_runner_on_reference(self):
         r = subprocess.run([sys.executable, os.path.join(ROOT, "conformance", "run.py"), "--cmd",
-                            "%s -m loma" % sys.executable, "--quiet"], cwd=ROOT, capture_output=True, text=True)
+                            '"%s" -m loma' % sys.executable, "--quiet"], cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
@@ -81,7 +81,7 @@ class Reference(unittest.TestCase):
 class SecondImplementation(unittest.TestCase):
     def test_runner_on_javascript(self):
         r = subprocess.run([sys.executable, os.path.join(ROOT, "conformance", "run.py"), "--cmd",
-                            "%s %s" % (NODE, os.path.join(ROOT, "js", "loma.js"))], cwd=ROOT, capture_output=True, text=True)
+                            '"%s" "%s"' % (NODE, os.path.join(ROOT, "js", "loma.js"))], cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_random_files_agree(self):
@@ -103,6 +103,27 @@ class SecondImplementation(unittest.TestCase):
                 text, warnings = decompile(f.read())
             self.assertEqual(got[path]["source"], text, os.path.basename(path))
             self.assertEqual(got[path]["warnings"], warnings)
+
+    def test_error_reports_agree_in_full(self):
+        """Not only code and line: messages, context and suggestions are the same in the two compilers."""
+        paths = sorted(glob.glob(os.path.join(ROOT, "conformance", "errors", "*.loma")))
+        script = ("const fs = require('fs'), l = require(process.argv[1]); const out = {};"
+                  "for (const p of process.argv.slice(2)) { try { l.compileText(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true})"
+                  ".decode(fs.readFileSync(p))); out[p] = []; } catch (e) { out[p] = e.errors || null; } }"
+                  "process.stdout.write(JSON.stringify(out));")
+        r = subprocess.run([NODE, "-e", script, os.path.join(ROOT, "js", "loma.js")] + paths, capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        got = json.loads(r.stdout.decode("utf-8"))
+        compared = 0
+        for path in paths:
+            try:
+                compile_text(source(path))
+            except UnicodeDecodeError:
+                continue
+            except LomaErrors as e:
+                self.assertEqual(got[path], [x.to_dict() for x in e.errors], os.path.basename(path))
+                compared += 1
+        self.assertGreaterEqual(compared, 110)
 
     def test_floor_div_table(self):
         script = ("const l = require(process.argv[1]);"

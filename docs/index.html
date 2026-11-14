@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>LOMA Playground</title>
+<meta name="description" content="Write music as text and hear it: LOMA is a language made for AIs that always compiles to the same MIDI file, byte for byte. Editor, piano roll and MIDI converter in the browser.">
+<link rel="canonical" href="https://manuellomartire.github.io/loma/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Cpath d='M5 3v10h7' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LOMA Playground">
+<meta property="og:description" content="Write music as text and hear it: LOMA is a language made for AIs that always compiles to the same MIDI file, byte for byte. Editor, piano roll and MIDI converter in the browser.">
+<meta property="og:url" content="https://manuellomartire.github.io/loma/">
+<meta property="og:image" content="https://manuellomartire.github.io/loma/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -50,8 +60,9 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 button.primary { background: var(--ink); color: var(--bg); font-weight: 600; min-width: 88px; }
 button.primary:hover { background: var(--bg); color: var(--ink); }
 button:disabled { color: var(--muted); border-color: var(--faint); background: var(--bg); cursor: default; }
-#lang { border: 0; padding: 0; min-height: 0; color: var(--link); text-decoration: underline; background: none; }
-#lang:hover { background: none; color: var(--ink); }
+nav { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; font-size: 14px; }
+nav a, nav button { border: 0; padding: 0; min-height: 0; color: var(--link); text-decoration: underline; background: none; }
+nav a:hover, nav button:hover { background: none; color: var(--ink); }
 .filebtn { display: inline-flex; align-items: center; position: relative; overflow: hidden; }
 .filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -105,7 +116,13 @@ summary { cursor: pointer; font-weight: 600; }
   <header>
     <h1>loma playground</h1>
     <p class="tagline" data-t="tagline"></p>
-    <button id="lang" type="button" aria-label="Language"></button>
+    <nav>
+      <a id="linkSpec" target="_blank" rel="noopener" data-t="spec"></a>
+      <a id="linkPrompt" target="_blank" rel="noopener" data-t="aiPrompt"></a>
+      <a href="https://github.com/manuellomartire/loma" target="_blank" rel="noopener">GitHub</a>
+      <button id="theme" type="button"></button>
+      <button id="lang" type="button" aria-label="Language"></button>
+    </nav>
   </header>
 
   <div class="panes">
@@ -116,12 +133,17 @@ summary { cursor: pointer; font-weight: 600; }
         <select id="examples" aria-label="Examples"></select>
         <label class="filebtn"><span data-t="open"></span><input id="file" type="file" accept=".loma,.txt,.mid,.midi,audio/midi"></label>
         <button id="copy" type="button" data-t="copy"></button>
+        <button id="share" type="button" data-t="share" hidden></button>
       </div>
       <div class="editor" id="editor">
         <pre id="gutter" aria-hidden="true"></pre>
         <textarea id="src" spellcheck="false" wrap="off" autocomplete="off" autocapitalize="off" aria-labelledby="h-src"></textarea>
       </div>
-      <p id="status" role="status"></p>
+      <div class="row">
+        <p id="status" role="status"></p>
+        <span class="grow"></span>
+        <button id="copyErrors" type="button" data-t="copyErrors" hidden></button>
+      </div>
       <ul id="errors"></ul>
       <p id="notice" hidden></p>
     </section>
@@ -240,6 +262,56 @@ class LomaErrors extends Error {
 }
 
 class Skip extends Error {}
+class Quiet extends Error {}
+
+// ---------------------------------------------------------------------------- suggestions
+
+function asciiLower(text) {
+  return text.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
+}
+
+function asciiUpper(text) {
+  return text.replace(/[a-z]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 32));
+}
+
+// Levenshtein distance between two arrays of code points.
+function editDistance(a, b) {
+  let prev = [];
+  for (let j = 0; j <= b.length; j++) prev.push(j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// The candidate nearest to a mistyped name, or null. Case is ignored (ASCII only). A candidate
+// is accepted within 2 edits, and only if the edits are fewer than the length of both names;
+// ties go to the first candidate in code point order.
+function closest(name, candidates) {
+  const low = Array.from(asciiLower(name));
+  if (low.length === 0 || low.length > 64) return null;
+  let best = null, bestD = 3;
+  for (const cand of Array.from(candidates).sort()) {
+    const c = Array.from(asciiLower(cand));
+    const d = editDistance(low, c);
+    if (d < bestD && d < c.length && d < low.length) {
+      best = cand;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+// [text to append to the message, extra fields of the error] for a mistyped name.
+function hint(name, candidates) {
+  const cand = closest(name, candidates);
+  if (cand === null || cand === name) return ["", {}];
+  return [" Did you mean '" + cand + "'?", { did_you_mean: cand }];
+}
 
 // ---------------------------------------------------------------------------- integer helpers
 
@@ -339,6 +411,31 @@ const PITCH_FULL = /^([A-G])([#b]?)(-?[0-9]+)$/;
 const MIDI_PITCH_FULL = /^m([0-9]+)$/;
 const TRACK_LINE = /^([A-Za-z][A-Za-z0-9_]*)(\{[^}]*\})?[ \t]*:([^]*)$/;
 const CHORD_FULL = /^([A-G])([#b]?)([^\/^]*)(?:\^([0-9]+))?(?:\/([A-G])([#b]?))?$/;
+const CHORD_LOOSE = /^([A-Ga-g])([#b]?)([^\/^]*)((?:\^[0-9]+)?)((?:\/[A-Ga-g][#b]?)?)$/;
+const NAME_PREFIX = /^[A-Za-z][A-Za-z0-9_]*/;
+const COMMANDS = ["title", "tempo", "meter", "key", "track", "pattern", "swing", "voicing", "section", "play", "at",
+  "bar", "end", "repeat"];
+// spellings that other notations use for the qualities of LOMA
+const CHORD_ALIASES = new Map([["maj", ""], ["major", ""], ["M", ""], ["min", "m"], ["minor", "m"], ["mi", "m"], ["-", "m"],
+  ["M7", "maj7"], ["Maj7", "maj7"], ["ma7", "maj7"], ["major7", "maj7"], ["min7", "m7"], ["mi7", "m7"],
+  ["-7", "m7"], ["minor7", "m7"], ["dom7", "7"], ["+", "aug"], ["o", "dim"], ["o7", "dim7"],
+  ["m7-5", "m7b5"], ["min7b5", "m7b5"], ["sus", "sus4"], ["7sus", "7sus4"], ["M9", "maj9"],
+  ["Maj9", "maj9"], ["min9", "m9"], ["min6", "m6"], ["min11", "m11"], ["mM7", "mmaj7"],
+  ["mMaj7", "mmaj7"], ["minmaj7", "mmaj7"], ["add2", "add9"]]);
+
+// The valid chord symbol that a wrong one most likely stands for, or null.
+function chordHint(text) {
+  const m = CHORD_LOOSE.exec(text);
+  if (!m) return null;
+  let quality = m[3];
+  if (!(CHORDS_01.has(quality) || CHORDS_03.has(quality))) {
+    quality = CHORD_ALIASES.has(quality) ? CHORD_ALIASES.get(quality)
+      : closest(quality, [...CHORDS_01.keys(), ...CHORDS_03.keys()]);
+  }
+  if (quality === null) return null;
+  const fixed = asciiUpper(m[1]) + m[2] + quality + m[4] + asciiUpper(m[5].slice(0, 2)) + m[5].slice(2);
+  return fixed !== text && CHORD_FULL.test(fixed) ? fixed : null;
+}
 
 function trim(s) {
   return s.replace(/^[ \t]+/, "").replace(/[ \t]+$/, "");
@@ -468,7 +565,9 @@ function isExplicit(item) {
 class Parser {
   constructor() {
     this.song = { version: null, title: null, tempo: 120, meter: [4, 4], key: null, tracks: [],
-      patterns: new Map(), swings: new Map(), voicings: new Map(), sections: new Map(), plays: [], ats: [] };
+      patterns: new Map(), swings: new Map(), voicings: new Map(), sections: new Map(), plays: [], ats: [],
+      // filled only when the file has syntax errors (see SPEC 13.1)
+      failed: { pattern: new Set(), swing: new Set(), voicing: new Set(), section: new Set() }, orphans: [] };
     this.errors = [];
     this.seen = new Set();
     this.version = null;
@@ -481,6 +580,7 @@ class Parser {
     this.skipBar = false;
     this.barCount = 0;
     this.badTracks = new Set();
+    this.meterFailed = false;
   }
 
   need(ver, feature, line) {
@@ -502,7 +602,8 @@ class Parser {
   trackByName(name, line) {
     for (const t of this.song.tracks) if (t.name === name) return t;
     if (this.badTracks.has(name)) throw new Skip();
-    throw new LomaError("E008", "track '" + name + "' is not declared (declare it with 'track' before using it)", line);
+    const [text, extra] = hint(name, this.song.tracks.map((t) => t.name));
+    throw new LomaError("E008", "track '" + name + "' is not declared (declare it with 'track' before using it)." + text, line, extra);
   }
 
   once(key, line) {
@@ -553,7 +654,10 @@ class Parser {
       return value;
     }
     if (track.kind === "drums") {
-      if (!DRUMS.has(name)) throw new LomaError("E001", "unknown drum name '" + name + "'", line);
+      if (!DRUMS.has(name)) {
+        const [text, extra] = hint(name, DRUMS.keys());
+        throw new LomaError("E001", "unknown drum name '" + name + "' (known: " + Array.from(DRUMS.keys()).sort().join(", ") + ")." + text, line, extra);
+      }
       return DRUMS.get(name);
     }
     if (DRUMS.has(name)) throw new LomaError("E001", "'" + name + "' is a drum name but track " + track.name + " is not a drums track", line);
@@ -566,7 +670,11 @@ class Parser {
 
   chord(text, line) {
     const m = CHORD_FULL.exec(text);
-    if (!m || !(CHORDS_01.has(m[3]) || CHORDS_03.has(m[3]))) throw new LomaError("E005", "unknown chord '" + text + "'", line);
+    if (!m || !(CHORDS_01.has(m[3]) || CHORDS_03.has(m[3]))) {
+      const fixed = chordHint(text);
+      if (fixed === null) throw new LomaError("E005", "unknown chord '" + text + "'", line);
+      throw new LomaError("E005", "unknown chord '" + text + "'. Did you mean '" + fixed + "'?", line, { did_you_mean: fixed });
+    }
     const quality = m[3], inv = m[4], bassLetter = m[5];
     if (!CHORDS_01.has(quality)) this.need("0.3", "chord quality '" + quality + "'", line);
     const rootPc = PITCH_CLASS.get(m[1]) + accidental(m[2]);
@@ -786,7 +894,9 @@ class Parser {
       if (words.length < 4) throw new LomaError("E001", "usage: pattern NAME from OTHER [base=O] : INDEX=STEP ...", line);
       const src = this.song.patterns.get(words[3]);
       if (src === undefined) {
-        throw new LomaError("E004", "pattern '" + words[3] + "' is not defined (it must be defined before this line)", line);
+        if (this.song.failed.pattern.has(words[3])) throw new Skip();
+        const [text, extra] = hint(words[3], this.song.patterns.keys());
+        throw new LomaError("E004", "pattern '" + words[3] + "' is not defined (it must be defined before this line)." + text, line, extra);
       }
       const opts = this.options(words.slice(4), ["base"], line, "pattern");
       base = opts.has("base") ? this.baseOption(opts.get("base"), line) : src.base;
@@ -857,7 +967,7 @@ class Parser {
     if (words.length !== 2 || words[0] !== "loma") {
       throw new LomaError("E001", "the file must start with 'loma VERSION' (e.g. 'loma 1.0')", line);
     }
-    if (!VERSIONS.has(words[1])) throw new LomaError("E001", "unsupported version '" + words[1] + "'", line);
+    if (!VERSIONS.has(words[1])) throw new LomaError("E001", "unsupported version '" + words[1] + "' (supported: " + Array.from(VERSIONS.keys()).join(", ") + ")", line);
     this.song.version = words[1];
     this.version = VERSIONS.get(words[1]);
   }
@@ -1035,6 +1145,7 @@ class Parser {
     if (this.bar !== null) {
       for (const tl of this.bar.trackLines) {
         if (!tl.failed && tl.parts.every((p) => p.use === null && p.items.length === 0)) {
+          tl.failed = true;
           this.errors.push(new LomaError("E001", "empty track line", tl.line));
         }
       }
@@ -1161,7 +1272,7 @@ class Parser {
   continuation(code, line) {
     if (this.tl === null) {
       if (this.skipBar || this.afterTl) return;
-      throw new LomaError("E002", "unknown command '" + splitWords(code)[0] + "'", line);
+      throw this.unknownCommand(splitWords(code)[0], line);
     }
     try {
       this.need("0.2", "track content on more than one line", line);
@@ -1209,7 +1320,32 @@ class Parser {
     else if (first === "end") throw new LomaError("E001", "'end' without a matching 'section' or 'repeat'", line);
     else if (first === "bar" || first === "repeat" || TRACK_LINE.test(code)) {
       throw new LomaError("E001", "'" + first + "' outside a section", line);
-    } else throw new LomaError("E002", "unknown command '" + first + "'", line);
+    } else throw this.unknownCommand(first, line);
+  }
+
+  unknownCommand(word, line) {
+    const name = word.split("{")[0];
+    if (this.song.tracks.some((t) => t.name === name)) {
+      return new LomaError("E002", "unknown command '" + word + "' (a track line needs ':' after the track name and its attributes)", line);
+    }
+    const [text, extra] = hint(word, COMMANDS);
+    return new LomaError("E002", "unknown command '" + word + "'." + text, line, extra);
+  }
+
+  // A top-level statement; a failed definition is remembered, so that its uses are not reported too.
+  top(code, words, line) {
+    try {
+      this.topLine(code, words, line);
+    } catch (e) {
+      if (e instanceof LomaError || e instanceof Skip) {
+        const first = words[0];
+        const m = words.length > 1 ? NAME_PREFIX.exec(words[1]) : null;
+        if (["pattern", "swing", "voicing", "section"].includes(first) && m) this.song.failed[first].add(m[0]);
+        if (first === "section" && this.section !== null) this.song.orphans.push(this.section);
+        if (first === "meter") this.meterFailed = true;
+      }
+      throw e;
+    }
   }
 
   run(text) {
@@ -1226,7 +1362,7 @@ class Parser {
           const name = this.section.name;
           this.closeSection();
           try {
-            this.topLine(code, words, ln);
+            this.top(code, words, ln);
           } catch (e) {
             if (!(e instanceof LomaError || e instanceof Skip)) throw e;
           }
@@ -1234,7 +1370,7 @@ class Parser {
         } else if (this.section !== null) {
           this.sectionLine(code, words, ln);
         } else {
-          this.topLine(code, words, ln);
+          this.top(code, words, ln);
         }
       } catch (e) {
         if (e instanceof Skip) continue;
@@ -1255,14 +1391,23 @@ class Parser {
       }
       this.closeSection();
     }
-    if (this.errors.length > 0) throw new LomaErrors(this.errors);
     return this.song;
   }
 }
 
+// Text -> { song, errors, checkable }. With syntax errors the song holds what could be read;
+// 'checkable' says whether its bars can still be validated (SPEC 13.1).
+function parsePartial(text) {
+  if (text.startsWith("\ufeff")) text = text.slice(1);
+  const p = new Parser();
+  const song = p.run(text);
+  return { song: song, errors: p.errors, checkable: p.version !== null && !p.meterFailed };
+}
+
 function parse(text) {
-  if (text.startsWith("﻿")) text = text.slice(1);
-  return new Parser().run(text);
+  const r = parsePartial(text);
+  if (r.errors.length > 0) throw new LomaErrors(r.errors);
+  return r.song;
 }
 
 // ---------------------------------------------------------------------------- expansion
@@ -1300,7 +1445,7 @@ function transposed(pitch, transpose, drums, line, ctx) {
   if (drums || transpose === 0) return pitch;
   const p = pitch + transpose;
   if (p < 0 || p > 127) {
-    throw new LomaError("E006", "transposition by " + transpose + " moves pitch " + pitch + " outside the MIDI range 0-127 (result " + p + ")", line, ctx);
+    throw new LomaError("E006", "transposition by " + (transpose < 0 ? "" : "+") + transpose + " moves pitch " + pitch + " outside the MIDI range 0-127 (result " + p + ")", line, ctx);
   }
   return p;
 }
@@ -1323,6 +1468,12 @@ function ramp(a, b, start, length) {
   return out;
 }
 
+function undefinedName(song, kind, names, name, line, ctx) {
+  if (song.failed[kind].has(name)) return new Quiet();
+  const [text, extra] = hint(name, names);
+  return new LomaError("E004", kind + " '" + name + "' is not defined." + text, line, Object.assign({}, ctx, extra));
+}
+
 class BarExpander {
   constructor(song, budget) {
     this.song = song;
@@ -1338,7 +1489,7 @@ class BarExpander {
     let swing = 0;
     if (tl.attrs.swing !== undefined) {
       const sw = this.song.swings.get(tl.attrs.swing);
-      if (sw === undefined) throw new LomaError("E004", "swing '" + tl.attrs.swing + "' is not defined", tl.line, tctx);
+      if (sw === undefined) throw undefinedName(this.song, "swing", this.song.swings.keys(), tl.attrs.swing, tl.line, tctx);
       if (p % sw.grid === 0) swing = sw.table[(p / sw.grid) % sw.table.length];
     }
     return [m, swing];
@@ -1368,7 +1519,7 @@ class BarExpander {
     const pats = [];
     for (const name of part.use) {
       const pat = this.song.patterns.get(name);
-      if (pat === undefined) throw new LomaError("E004", "pattern '" + name + "' is not defined", tl.line, tctx);
+      if (pat === undefined) throw undefinedName(this.song, "pattern", this.song.patterns.keys(), name, tl.line, tctx);
       pats.push(pat);
     }
     const total = pats.reduce((s, x) => s + x.length, 0);
@@ -1412,7 +1563,7 @@ class BarExpander {
       let pitches, noteAttrs;
       if (it.kind === "voiced") {
         const voicing = this.song.voicings.get(it.name);
-        if (voicing === undefined) throw new LomaError("E004", "voicing '" + it.name + "' is not defined", it.line, tctx);
+        if (voicing === undefined) throw undefinedName(this.song, "voicing", this.song.voicings.keys(), it.name, it.line, tctx);
         const chord = bar.chords[Math.min(Math.floor(p / seg), bar.chords.length - 1)];
         pitches = voicing.tones.map((t) => tonePitch(t, chord, voicing.base, it.line, tctx));
         noteAttrs = pitches.map(() => ({}));
@@ -1457,6 +1608,7 @@ class BarExpander {
     const seg = barLen / n;
     const result = [];
     for (const tl of bar.trackLines) {
+      if (tl.failed) continue;              // only in a file with syntax errors
       const tctx = Object.assign({}, ctx, { track: tl.track.name });
       const single = tl.parts.length === 1;
       if (!single && tl.parts.length !== n) {
@@ -1464,18 +1616,23 @@ class BarExpander {
           Object.assign({}, tctx, { expected: n, got: tl.parts.length }));
       }
       const out = [];
-      tl.parts.forEach((part, k) => {
-        if (part.use !== null) {
-          const segments = single ? bar.chords.map((_, kk) => kk) : [k];
-          for (const kk of segments) {
-            this.fillPattern(tl, part, bar.chords[kk], start, kk * seg, seg, barLen, playIdx, transpose, tctx, out, n === 1);
+      try {
+        tl.parts.forEach((part, k) => {
+          if (part.use !== null) {
+            const segments = single ? bar.chords.map((_, kk) => kk) : [k];
+            for (const kk of segments) {
+              this.fillPattern(tl, part, bar.chords[kk], start, kk * seg, seg, barLen, playIdx, transpose, tctx, out, n === 1);
+            }
+          } else if (single) {
+            this.fillExplicit(tl, part, bar, seg, start, 0, barLen, barLen, playIdx, transpose, tctx, out, true);
+          } else {
+            this.fillExplicit(tl, part, bar, seg, start, k * seg, seg, barLen, playIdx, transpose, tctx, out, false);
           }
-        } else if (single) {
-          this.fillExplicit(tl, part, bar, seg, start, 0, barLen, barLen, playIdx, transpose, tctx, out, true);
-        } else {
-          this.fillExplicit(tl, part, bar, seg, start, k * seg, seg, barLen, playIdx, transpose, tctx, out, false);
-        }
-      });
+        });
+      } catch (e) {
+        if (e instanceof Quiet) continue;
+        throw e;
+      }
       result.push([tl.track.index, out]);
     }
     return result;
@@ -1568,6 +1725,49 @@ function compareKeys(a, b) {
   return 0;
 }
 
+// Bar checks of the semantic phase on a file that has syntax errors (SPEC 13.1). Every bar that
+// could be read is validated once for each 'play' that uses it; the position in the song does
+// not matter for these errors. Returns the list of errors.
+function checkBars(song) {
+  const errors = [];
+  const expander = new BarExpander(song, new Budget());
+  const meterLen = song.meter[0] * (WHOLE / song.meter[1]);
+  const todo = [];
+  const played = new Set();
+  song.plays.forEach((play, pi) => {
+    const sec = song.sections.get(play.name);
+    if (sec === undefined) {
+      if (!song.failed.section.has(play.name)) {
+        const [text, extra] = hint(play.name, song.sections.keys());
+        errors.push(new LomaError("E004", "section '" + play.name + "' is not defined." + text, play.line, extra));
+      }
+      return;
+    }
+    played.add(play.name);
+    todo.push([sec, pi, play.transpose]);
+  });
+  for (const sec of song.sections.values()) if (!played.has(sec.name)) todo.push([sec, -1, 0]);
+  for (const sec of song.orphans) todo.push([sec, -1, 0]);
+  try {
+    for (const [sec, pi, transpose] of todo) {
+      const flat = [];
+      allBars(sec.body, flat);
+      for (const bar of flat) {
+        try {
+          expander.expand(sec, bar, 0, pi, transpose, bar.lenTicks || meterLen);
+        } catch (e) {
+          if (!(e instanceof LomaError)) throw e;
+          errors.push(e);
+        }
+      }
+    }
+  } catch (e) {
+    if (e instanceof LomaErrors) return [];  // a limit was exceeded: only the syntax errors are reported
+    throw e;
+  }
+  return errors;
+}
+
 function compileSong(song) {
   const errors = [];
   const budget = new Budget();
@@ -1580,7 +1780,8 @@ function compileSong(song) {
   song.plays.forEach((play, pi) => {
     const sec = song.sections.get(play.name);
     if (sec === undefined) {
-      errors.push(new LomaError("E004", "section '" + play.name + "' is not defined", play.line));
+      const [text, extra] = hint(play.name, song.sections.keys());
+      errors.push(new LomaError("E004", "section '" + play.name + "' is not defined." + text, play.line, extra));
       return;
     }
     played.add(play.name);
@@ -1797,7 +1998,9 @@ function writeMidi(compiled) {
 }
 
 function compileText(text) {
-  const compiled = compileSong(parse(text));
+  const r = parsePartial(text);
+  if (r.errors.length > 0) throw new LomaErrors(r.errors.concat(r.checkable ? checkBars(r.song) : []));
+  const compiled = compileSong(r.song);
   return { compiled: compiled, midi: writeMidi(compiled) };
 }
 
@@ -2166,6 +2369,9 @@ const T = {
   en: {
     tagline: "Write music as text. The same file always compiles to the same MIDI, byte for byte.",
     source: "Source", playback: "Playback", open: "Open .loma or .mid", copy: "Copy", copied: "Copied",
+    spec: "Specification", aiPrompt: "Prompt for AIs", share: "Copy link", copyErrors: "Copy the errors for the AI",
+    themeDark: "Dark theme", themeLight: "Light theme", tooLong: "This piece is too long for a link: download the .loma file instead.",
+    badLink: "The link does not contain a readable piece.",
     play: "Play", stop: "Stop", rewind: "To start", volume: "Volume",
     synthNote: "The sound comes from a small synthesizer built into this page, not from real instruments. Click the roll to move the playhead.",
     saveMidi: "Download MIDI", saveLoma: "Download LOMA",
@@ -2187,6 +2393,9 @@ const T = {
   it: {
     tagline: "Scrivi la musica come testo. Lo stesso file produce sempre lo stesso MIDI, byte per byte.",
     source: "Sorgente", playback: "Riproduzione", open: "Apri .loma o .mid", copy: "Copia", copied: "Copiato",
+    spec: "Specifica", aiPrompt: "Prompt per le AI", share: "Copia link", copyErrors: "Copia gli errori per l'AI",
+    themeDark: "Tema scuro", themeLight: "Tema chiaro", tooLong: "Questo brano è troppo lungo per un link: scarica il file .loma.",
+    badLink: "Il link non contiene un brano leggibile.",
     play: "Riproduci", stop: "Ferma", rewind: "All'inizio", volume: "Volume",
     synthNote: "Il suono viene da un piccolo sintetizzatore dentro questa pagina, non da strumenti veri. Clicca sul rullo per spostare il cursore.",
     saveMidi: "Scarica MIDI", saveLoma: "Scarica LOMA",
@@ -2315,6 +2524,7 @@ function renderGutter() {
 function renderStatus() {
   const status = $("status"), list = $("errors");
   list.textContent = "";
+  $("copyErrors").hidden = lastErrors.length === 0;
   if (lastErrors.length === 0) {
     status.className = "ok";
     status.textContent = t("valid");
@@ -2640,6 +2850,84 @@ function notice(text) {
   el.hidden = !text;
 }
 
+// ------------------------------------------------------------------ clipboard, theme, links
+function copyText(text, button, key) {
+  const done = () => { button.textContent = t("copied"); setTimeout(() => { button.textContent = t(key); }, 1200); };
+  const fallback = () => {                      // the clipboard is refused in some views: leave the text selected
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0";
+    document.body.append(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    area.remove();
+    if (ok) done();
+    else if (button.id === "copy") { src.focus(); src.select(); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+
+// The same lines that the command line prints, ready to paste to an AI.
+function errorsText() {
+  return lastErrors.map((e) => {
+    let s = e.code + " line " + e.line;
+    if (e.ctx && e.ctx.bar !== undefined) s += " bar " + e.ctx.bar + (e.ctx.chord !== undefined ? " (" + e.ctx.chord + ")" : "");
+    if (e.ctx && e.ctx.track !== undefined) s += " track " + e.ctx.track;
+    return s + ": " + e.message;
+  }).join("\n") + "\n";
+}
+
+function isDark() {
+  const forced = document.documentElement.getAttribute("data-theme");
+  if (forced === "dark" || forced === "light") return forced === "dark";
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function renderTheme() {
+  $("theme").textContent = t(isDark() ? "themeLight" : "themeDark");
+}
+
+// A piece travels in the link as "#z=" (deflate) or "#u=" (plain), both base64url of the UTF-8 source.
+const LINK_LIMIT = 60000;
+function toBase64Url(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function fromBase64Url(text) {
+  const s = atob(text.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return bytes;
+}
+async function pipeBytes(bytes, stream) {
+  const out = new Response(new Blob([bytes]).stream().pipeThrough(stream));
+  return new Uint8Array(await out.arrayBuffer());
+}
+async function shareLink() {
+  const bytes = new TextEncoder().encode(src.value);
+  let part = "u=" + toBase64Url(bytes);
+  if (typeof CompressionStream === "function") {
+    try { part = "z=" + toBase64Url(await pipeBytes(bytes, new CompressionStream("deflate-raw"))); } catch (e) { /* keep the plain form */ }
+  }
+  return part.length > LINK_LIMIT ? null : location.origin + location.pathname + "#" + part;
+}
+async function sourceFromLink() {
+  const m = /^#([zu])=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if (!m || m[2].length > LINK_LIMIT) return null;
+  try {
+    let bytes = fromBase64Url(m[2]);
+    if (m[1] === "z") bytes = await pipeBytes(bytes, new DecompressionStream("deflate-raw"));
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (e) {
+    notice(t("badLink"));
+    return null;
+  }
+}
+
 function baseName() {
   const raw = (model ? model.title : "song").normalize("NFKD").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
   return raw || "song";
@@ -2703,6 +2991,9 @@ function applyLanguage() {
   document.documentElement.lang = lang;
   for (const el of document.querySelectorAll("[data-t]")) el.textContent = t(el.dataset.t);
   $("lang").textContent = lang === "it" ? "English" : "Italiano";
+  $("linkSpec").href = "https://github.com/manuellomartire/loma/blob/main/" + (lang === "it" ? "SPEC.it.md" : "SPEC.md");
+  $("linkPrompt").href = "https://github.com/manuellomartire/loma/blob/main/experiment/" + (lang === "it" ? "prompt.it.md" : "prompt.md");
+  renderTheme();
   $("play").textContent = playing ? t("stop") : t("play");
   const sel = $("examples");
   sel.textContent = "";
@@ -2766,23 +3057,40 @@ editor.addEventListener("drop", (e) => {
   editor.classList.remove("drag");
   if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]);
 });
-$("copy").addEventListener("click", () => {
-  const done = () => { $("copy").textContent = t("copied"); setTimeout(() => { $("copy").textContent = t("copy"); }, 1200); };
-  const fallback = () => { src.focus(); src.select(); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(src.value).then(done, fallback);
-  else fallback();
+$("copy").addEventListener("click", () => copyText(src.value, $("copy"), "copy"));
+$("copyErrors").addEventListener("click", () => copyText(errorsText(), $("copyErrors"), "copyErrors"));
+$("share").addEventListener("click", () => {
+  shareLink().then((url) => {
+    if (url === null) notice(t("tooLong"));
+    else { notice(""); copyText(url, $("share"), "share"); }
+  });
+});
+$("theme").addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  store.set("loma-theme", next);
 });
 $("saveMidi").addEventListener("click", () => { if (model && lastErrors.length === 0) saveFile(baseName() + ".mid", model.midi, "midi"); });
 $("saveLoma").addEventListener("click", () => saveFile(baseName() + ".loma", src.value, "loma"));
 $("lang").addEventListener("click", () => { lang = lang === "it" ? "en" : "it"; store.set("loma-lang", lang); applyLanguage(); });
 window.addEventListener("resize", draw);
-if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+const repaint = () => { renderTheme(); draw(); };
+if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", repaint);
+new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
 
+// Standing alone (not embedded in another page) the page keeps the chosen theme and can share links.
+const standalone = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
+if (standalone) {
+  const theme = store.get("loma-theme");
+  if (theme === "dark" || theme === "light") document.documentElement.setAttribute("data-theme", theme);
+  $("share").hidden = false;
+}
 src.value = store.get("loma-draft") || EXAMPLES[0].source;
 applyLanguage();
 compile();
+sourceFromLink().then((text) => { if (text !== null) setSource(text); });
+window.addEventListener("hashchange", () => { sourceFromLink().then((text) => { if (text !== null) setSource(text); }); });
 </script>
 </body>
 </html>

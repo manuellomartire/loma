@@ -213,3 +213,6 @@ class Song:
     sections: dict = field(default_factory=dict)
     plays: list = field(default_factory=list)
     ats: list = field(default_factory=list)
+    # filled only when the file has syntax errors (see SPEC 13.1)
+    failed: dict = field(default_factory=lambda: {"pattern": set(), "swing": set(), "voicing": set(), "section": set()})
+    orphans: list = field(default_factory=list)   # sections whose header is wrong

@@ -70,7 +70,9 @@ def main():
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
-    cmd = shlex.split(args.cmd)
+    # on Windows a backslash is part of a path, not an escape; quotes still group words
+    cmd = [w[1:-1] if len(w) > 1 and w[0] == w[-1] and w[0] in "\"'" else w
+           for w in shlex.split(args.cmd, posix=os.name != "nt")]
 
     failures, total = [], 0
     with tempfile.TemporaryDirectory() as tmp:

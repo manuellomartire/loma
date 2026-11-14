@@ -339,9 +339,9 @@ class Errors(unittest.TestCase):
         # semantic errors: all reported together, one per bar
         text = song("  bar C\n    P: C4/2\n  bar C\n    P: use nope\n  bar C\n    P: C4/1 C4/4\n")
         self.assertEqual(sorted(codes(text)), ["E003", "E003", "E004"])
-        # syntax errors: all reported together, and before any semantic check
+        # syntax errors and the bar checks on the readable lines: reported in the same round
         text = song("  bar Cxyz\n    P: C4/1\n  bar C\n    P: H4/1\n  bar C\n    P: C4/2\n")
-        self.assertEqual(sorted(codes(text)), ["E001", "E005"])
+        self.assertEqual(sorted(codes(text)), ["E001", "E003", "E005"])
 
     def test_json_error_form(self):
         import json

@@ -21,8 +21,23 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLES = [("First example", None), ("Brano 1 - Lanterna", "brano1.loma"), ("Brano 2 - Mulino", "brano2.loma"),
             ("Brano 3 - Faro", "brano3.loma"), ("Showcase", "showcase.loma")]
 
+SITE = "https://manuellomartire.github.io/loma/"
+DESCRIPTION = ("Write music as text and hear it: LOMA is a language made for AIs that always compiles "
+               "to the same MIDI file, byte for byte. Editor, piano roll and MIDI converter in the browser.")
+ICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E"
+        "%3Cpath d='M5 3v10h7' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E")
 SKELETON = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
+            '<title>LOMA Playground</title>\n'
+            '<meta name="description" content="' + DESCRIPTION + '">\n'
+            '<link rel="canonical" href="' + SITE + '">\n'
+            '<link rel="icon" href="' + ICON + '">\n'
+            '<meta property="og:type" content="website">\n'
+            '<meta property="og:title" content="LOMA Playground">\n'
+            '<meta property="og:description" content="' + DESCRIPTION + '">\n'
+            '<meta property="og:url" content="' + SITE + '">\n'
+            '<meta property="og:image" content="' + SITE + 'og.png">\n'
+            '<meta name="twitter:card" content="summary_large_image">\n'
             '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
             'body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>\n'
             '</head>\n<body>\n@@PAGE@@</body>\n</html>\n')

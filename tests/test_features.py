@@ -407,5 +407,112 @@ class Robustness(unittest.TestCase):
         self.assertEqual(run("test-determinism", path, "--runs", "5").returncode, 0)
 
 
+def pairs(text):
+    return [(e.code, e.line) for e in errs(text)]
+
+
+class OneRound(unittest.TestCase):
+    """SPEC 13.1: syntax errors and the bar checks on the readable lines are reported together."""
+    H2 = H + "track Q ch=2 program=0\n"                 # lines 1-5
+
+    def test_bar_checks_run_beside_syntax_errors(self):
+        text = song("  bar C\n    P: C4/2\n  bar C\n    P: H4/1\n")
+        self.assertEqual(pairs(text), [("E003", 7), ("E001", 9)])
+
+    def test_failed_line_is_skipped_and_the_rest_of_the_bar_is_checked(self):
+        text = song("  bar C\n    P: H4/1\n    Q: C4/2\n  bar C\n    P:\n    Q: C4/1\n", head=self.H2)
+        self.assertEqual(pairs(text), [("E001", 8), ("E003", 9), ("E001", 11)])
+
+    def test_failed_definitions_are_not_reported_where_they_are_used(self):
+        extra = "pattern arp base=3 dur=/5 : 1 3\npattern two from arp : 1=5\nswing sw grid=/8 : x\nvoicing vo base=3 : 99\n"
+        body = "  bar C\n    P{swing=sw}: use arp\n    Q: *vo/1\n  bar C\n    P: use two\n    Q: use missing\n"
+        self.assertEqual(pairs(song(body, head=self.H2, extra=extra)), [("E007", 6), ("E001", 8), ("E010", 9), ("E004", 16)])
+
+    def test_section_with_a_wrong_header(self):
+        text = self.H2 + "section bar\n  bar C\n    P: C4/2\nend\nplay bar\nplay nowhere\n"
+        self.assertEqual(pairs(text), [("E019", 6), ("E003", 8), ("E004", 11)])
+
+    def test_ties_duplicates_and_limits_wait_for_clean_syntax(self):
+        body = "  bar C\n    P: C4/1~\n  bar C\n    P: D4/1\n"
+        self.assertEqual(codes(song(body)), ["E012"])
+        self.assertEqual(codes(song(body + "  bar Zz\n    P: C4/1\n")), ["E005"])
+        dup = "at 0 P C4 d=10\nat 0 P C4 d=10\n"
+        self.assertEqual(codes(song("  bar C\n    P: r/1\n") + dup), ["E017"])
+        self.assertEqual(codes(song("  bar C\n    P: r/1\n") + dup + "banana\n"), ["E002"])
+
+    def test_wrong_meter_or_header_stops_the_bar_checks(self):
+        text = song("  bar C\n    P: C4/2\n").replace("meter 4/4", "meter 4/3")
+        self.assertEqual(codes(text), ["E018"])
+        self.assertEqual(codes("loma 7\n" + song("  bar C\n    P: C4/2\n")), ["E001"])
+
+    def test_limit_in_the_reduced_phase_drops_its_errors(self):
+        body = "  bar C\n    P: C4/2\n  bar C len=/#1000001\n    P: use p\n"
+        text = H + "pattern p base=3 dur=/#1 : 1\nbanana\n" + "section s\n" + body + "end\nplay s\n"
+        self.assertEqual(codes(text), ["E002"])
+
+    def test_each_play_is_checked_with_its_transposition(self):
+        text = song("  bar C\n    P: G9/1\n  bar C\n    P: C4/1 oops\n") + "play s transpose=+1\n"
+        self.assertEqual(pairs(text), [("E006", 7), ("E001", 9)])
+
+    def test_valid_files_are_untouched(self):
+        for name in ("example", "brano1", "brano2", "brano3", "showcase"):
+            with open(os.path.join(ROOT, "examples", name + ".loma"), encoding="utf-8") as f:
+                compile_text(f.read())
+
+
+class Suggestions(unittest.TestCase):
+    def hint(self, text, code=None):
+        e = errs(text)[0]
+        if code:
+            self.assertEqual(e.code, code)
+        return e.ctx.get("did_you_mean")
+
+    def test_chords(self):
+        for wrong, right in (("Cmaj", "C"), ("Amin", "Am"), ("DM7", "Dmaj7"), ("Gmin7", "Gm7"), ("am", "Am"), ("bb7", "Bb7"),
+                             ("F#-7", "F#m7"), ("Csus", "Csus4"), ("C+", "Caug"), ("Ebmaj", "Eb"), ("Cmaj7/e", "Cmaj7/E"),
+                             ("CMaj7^1", "Cmaj7^1"), ("Cmaj77", "Cmaj7"), ("Bo7", "Bdim7"), ("Dmin7b5/Ab", "Dm7b5/Ab")):
+            self.assertEqual(self.hint(song("  bar %s\n    P: r/1\n" % wrong), "E005"), right, wrong)
+            compile_text(song("  bar %s\n    P: r/1\n" % right))
+        for wrong in ("H", "Cxyzzy", "X7", "C^", "1", "C/"):
+            self.assertIsNone(self.hint(song("  bar %s\n    P: r/1\n" % wrong), "E005"), wrong)
+
+    def test_names(self):
+        self.assertEqual(self.hint(song("  bar C\n    p: C4/1\n"), "E008"), "P")
+        self.assertEqual(self.hint(song("  bar C\n    P: use arpp\n", extra="pattern arp base=3 dur=/4 : 1\n"), "E004"), "arp")
+        self.assertEqual(self.hint(song("  bar C\n    P{swing=ligt}: C4/1\n", extra="swing light grid=/8 : 0 10\n"), "E004"), "light")
+        self.assertEqual(self.hint(song("  bar C\n    P: *opn/1\n", extra="voicing open base=3 : 1 5\n"), "E004"), "open")
+        self.assertEqual(self.hint(song("  bar C\n    P: C4/1\n").replace("play s", "play S"), "E004"), "s")
+        self.assertEqual(self.hint(H + "pattern a base=3 dur=/4 : 1\npattern b from A : 1=3\n", "E004"), "a")
+        self.assertEqual(self.hint(H + "sektion s\n", "E002"), "section")
+        drums = H + "track K drums\n" + "section s\n  bar C\n    K: Snare/1\nend\nplay s\n"
+        self.assertEqual(self.hint(drums, "E001"), "snare")
+
+    def test_no_suggestion_when_nothing_is_close(self):
+        self.assertIsNone(self.hint(song("  bar C\n    Zzzzzz: C4/1\n"), "E008"))
+        self.assertIsNone(self.hint(song("  bar C\n    P: use q\n", extra="pattern a base=3 dur=/4 : 1\n"), "E004"))
+        self.assertIsNone(self.hint(H + "banana\n", "E002"))
+
+    def test_rule(self):
+        from loma.util import closest
+        self.assertEqual(closest("snar", ["snare", "kick"]), "snare")
+        self.assertEqual(closest("ab", ["aa", "ac"]), "aa")            # tie: first in code point order
+        self.assertEqual(closest("VERSE", ["verse", "chorus"]), "verse")
+        self.assertIsNone(closest("a", ["b"]))                          # the edits must be fewer than both lengths
+        self.assertIsNone(closest("hh", ["hat"]))
+        self.assertIsNone(closest("abcdef", ["abc"]))                   # more than 2 edits
+        self.assertIsNone(closest("", ["a"]))
+        self.assertIsNone(closest("x" * 65, ["x" * 64]))
+
+    def test_missing_colon_message(self):
+        e = errs(song("  bar C\n    P C4/1\n"))[0]
+        self.assertEqual(e.code, "E002")
+        self.assertIn("needs ':'", e.message)
+
+    def test_suggestion_in_json_and_text(self):
+        e = errs(song("  bar Cmaj\n    P: r/1\n"))[0]
+        self.assertEqual(e.to_dict()["did_you_mean"], "C")
+        self.assertTrue(e.format().endswith("unknown chord 'Cmaj'. Did you mean 'C'?"))
+
+
 if __name__ == "__main__":
     unittest.main()

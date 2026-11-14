@@ -1,0 +1,8 @@
+# The same bytes on every system: text files are stored and checked out with LF.
+* text=auto eol=lf
+
+# The conformance suite is compared byte for byte, and some cases contain CR LF or invalid
+# UTF-8 on purpose: git must never convert these files.
+conformance/** -text
+*.mid binary
+*.png binary

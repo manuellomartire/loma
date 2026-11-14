@@ -4,8 +4,8 @@ Python reference compiler and by the JavaScript implementation; the results must
 
     python3 tools/fuzz_compare.py --count 3000 --seed 1
 
-For a valid file the MIDI bytes and the events JSON are compared; for an invalid one the list of
-(code, line). Exit status 1 on the first difference, with the offending file kept on disk.
+For a valid file the MIDI bytes and the events JSON are compared; for an invalid one the complete
+error reports (code, line, context, message, suggestions). Exit status 1 on the first difference, with the offending file kept on disk.
 """
 import argparse
 import hashlib
@@ -33,14 +33,14 @@ for (const name of fs.readdirSync(dir).filter((n) => n.endsWith(".loma")).sort()
   let text;
   try {
     text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(fs.readFileSync(path.join(dir, name)));
-  } catch (e) { out[name] = { errors: [["E001", 1]] }; continue; }
+  } catch (e) { out[name] = { errors: [{ code: "E001", line: 1 }] }; continue; }
   try {
     const r = loma.compileText(text);
     out[name] = { midi: crypto.createHash("sha256").update(r.midi).digest("hex"),
                   events: crypto.createHash("sha256").update(loma.canonicalJson(r.compiled)).digest("hex") };
   } catch (e) {
     if (!(e instanceof loma.LomaErrors)) { out[name] = { crash: String(e && e.stack || e) }; continue; }
-    out[name] = { errors: e.errors.map((x) => [x.code, x.line]) };
+    out[name] = { errors: e.errors };
   }
 }
 process.stdout.write(JSON.stringify(out));
@@ -313,7 +313,7 @@ def reference(text):
     try:
         compiled, midi = compile_text(text)
     except LomaErrors as e:
-        return {"errors": [[x.code, x.line] for x in e.errors]}
+        return {"errors": [x.to_dict() for x in e.errors]}
     events = canonical_json(compiled.events, compiled.track_names).encode("utf-8")
     return {"midi": hashlib.sha256(midi).hexdigest(), "events": hashlib.sha256(events).hexdigest()}
 

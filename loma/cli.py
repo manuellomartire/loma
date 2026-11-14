@@ -104,7 +104,16 @@ def _run(args):
     return 0
 
 
+def _portable_output():
+    """UTF-8 and '\\n' on every system: the output must not depend on the platform (on Windows the
+    default would be the local code page and '\\r\\n')."""
+    for stream, errors in ((sys.stdout, "strict"), (sys.stderr, "backslashreplace")):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors=errors, newline="\n")
+
+
 def main(argv=None):
+    _portable_output()
     args = _parser().parse_args(argv)
     try:
         return _run(args)

@@ -2,9 +2,10 @@
   "name": "loma-language",
   "displayName": "LOMA",
   "description": "Syntax highlighting for the LOMA music language (.loma)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "loma",
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/manuellomartire/loma.git", "directory": "editors/vscode" },
   "engines": { "vscode": "^1.60.0" },
   "categories": ["Programming Languages"],
   "contributes": {

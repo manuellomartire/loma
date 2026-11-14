@@ -6,7 +6,8 @@ LOMA è un linguaggio testuale per descrivere musica, pensato per essere **scrit
 
 - Specifica completa: [SPEC.it.md](SPEC.it.md) (italiano), [SPEC.md](SPEC.md) (inglese)
 - Grammatica formale: [spec/grammar.ebnf](spec/grammar.ebnf)
-- Novità per versione: [CHANGELOG.md](CHANGELOG.md)
+- Novità per versione: [CHANGELOG.it.md](CHANGELOG.it.md)
+- Playground: https://manuellomartire.github.io/loma/
 
 ## Un esempio
 
@@ -40,13 +41,13 @@ L'AI scrive le intenzioni (accordo `Cm`, la sinistra fa l'arpeggio, la melodia c
 
 Provalo online: **https://manuellomartire.github.io/loma/**
 
-`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, leggi gli errori accanto alle righe, ascolti il risultato su un piano roll, scarichi il file MIDI, oppure apri un file `.mid` per trasformarlo in LOMA. Contiene il compilatore JavaScript, quindi non serve un server. È pubblicata con GitHub Pages: in un fork scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
+`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, leggi gli errori accanto alle righe (e li copi per l'AI che ha scritto il file), ascolti il risultato su un piano roll, scarichi il file MIDI, apri un file `.mid` per trasformarlo in LOMA, oppure copi un link che contiene il brano. Contiene il compilatore JavaScript, quindi non serve un server. È pubblicata con GitHub Pages: in un fork scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
 
 Il suono viene da un piccolo sintetizzatore dentro la pagina, non da strumenti veri. Dopo aver cambiato `js/loma.js`, gli esempi o `docs/playground.src.html`, ricostruisci la pagina con `python3 tools/build_web.py`.
 
 ## Uso
 
-Serve Python 3.9 o successivo, senza dipendenze (provato con Python 3.11, 3.12 e 3.13; la seconda implementazione con Node.js 22).
+Serve Python 3.9 o successivo, senza dipendenze. I test girano su Linux, Windows e macOS; la seconda implementazione richiede Node.js 18 o successivo.
 
 ```
 python3 -m loma compile brano.loma -o brano.mid     # compila
@@ -59,9 +60,10 @@ python3 -m loma decompile brano.mid -o brano.loma   # da MIDI a LOMA
 
 Con `pip install .` il comando diventa `loma`. Il nome del file può essere `-` per leggere dallo standard input. Stato di uscita: 0 riuscito, 1 errori nel file, 2 problema d'uso o di lettura.
 
-Un errore dice dove e cosa correggere:
+Un errore dice dove e cosa correggere, e un nome scritto male propone quello giusto. Gli errori di sintassi e quelli di battuta sono riportati nello stesso giro, così un'AI può correggerli tutti insieme:
 
 ```
+E005 line 9: unknown chord 'Cmaj'. Did you mean 'C'?
 E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 1680. Missing 240 ticks (= /8).
 ```
 
@@ -72,7 +74,7 @@ E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 
 | `loma/` | Compilatore di riferimento in Python: parser, espansione, eventi, scrittura MIDI, decompilatore, riga di comando |
 | `js/` | Seconda implementazione in JavaScript (Node.js e browser), usata per verificare la conformità |
 | `docs/` | La pagina web del playground: `index.html` è autosufficiente e si può servire con GitHub Pages |
-| `conformance/` | Suite di conformità: 95 file validi con i byte attesi, 109 file con gli errori attesi, e il programma che li confronta |
+| `conformance/` | Suite di conformità: 95 file validi con i byte attesi, 116 file con gli errori attesi, e il programma che li confronta |
 | `spec/` | Grammatica EBNF |
 | `tests/` | Test automatici |
 | `tools/` | Rigenerazione della suite, confronto su file casuali fra le due implementazioni, costruzione della pagina web |
@@ -91,7 +93,7 @@ python3 tools/fuzz_compare.py --count 5000                  # file casuali: Pyth
 
 Che cosa è verificato:
 
-- **Stessi byte da due implementazioni.** Il compilatore Python e quello JavaScript producono gli stessi eventi e gli stessi byte su tutti i 204 casi della suite e su migliaia di file generati a caso, validi e non.
+- **Stessi byte da due implementazioni.** Il compilatore Python e quello JavaScript producono gli stessi eventi e gli stessi byte su tutti i 211 casi della suite e su migliaia di file generati a caso, validi e non.
 - **Byte calcolati a mano.** Il file minimo di [SPEC.it.md §16.1](SPEC.it.md#161-esempio-con-i-byte-attesi) è stato calcolato a mano dalla specifica e coincide con l'output.
 - **Andata e ritorno.** Ogni MIDI della suite, decompilato e ricompilato, torna identico.
 
@@ -116,6 +118,11 @@ Che cosa **non** è verificato:
 | 0.3 — armonia avanzata | Fatto |
 | 1.0 — specifica stabile, documentazione, suite pubblica | Fatto |
 | Da MIDI a LOMA, testi cantati, evidenziazione della sintassi | Fatto |
+| Compilatore 1.1 — errori in un solo giro, suggerimenti, link nel playground | Fatto |
+
+## Contribuire
+
+Una modifica deve conservare i byte: lancia i test prima di aprire una pull request. Rigenerare i file attesi della suite (`tools/make_conformance.py`) è un cambiamento della specifica e va fatto di proposito.
 
 ## Licenza
 

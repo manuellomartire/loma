@@ -81,6 +81,56 @@ class LomaErrors extends Error {
 }
 
 class Skip extends Error {}
+class Quiet extends Error {}
+
+// ---------------------------------------------------------------------------- suggestions
+
+function asciiLower(text) {
+  return text.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
+}
+
+function asciiUpper(text) {
+  return text.replace(/[a-z]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 32));
+}
+
+// Levenshtein distance between two arrays of code points.
+function editDistance(a, b) {
+  let prev = [];
+  for (let j = 0; j <= b.length; j++) prev.push(j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// The candidate nearest to a mistyped name, or null. Case is ignored (ASCII only). A candidate
+// is accepted within 2 edits, and only if the edits are fewer than the length of both names;
+// ties go to the first candidate in code point order.
+function closest(name, candidates) {
+  const low = Array.from(asciiLower(name));
+  if (low.length === 0 || low.length > 64) return null;
+  let best = null, bestD = 3;
+  for (const cand of Array.from(candidates).sort()) {
+    const c = Array.from(asciiLower(cand));
+    const d = editDistance(low, c);
+    if (d < bestD && d < c.length && d < low.length) {
+      best = cand;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+// [text to append to the message, extra fields of the error] for a mistyped name.
+function hint(name, candidates) {
+  const cand = closest(name, candidates);
+  if (cand === null || cand === name) return ["", {}];
+  return [" Did you mean '" + cand + "'?", { did_you_mean: cand }];
+}
 
 // ---------------------------------------------------------------------------- integer helpers
 
@@ -180,6 +230,31 @@ const PITCH_FULL = /^([A-G])([#b]?)(-?[0-9]+)$/;
 const MIDI_PITCH_FULL = /^m([0-9]+)$/;
 const TRACK_LINE = /^([A-Za-z][A-Za-z0-9_]*)(\{[^}]*\})?[ \t]*:([^]*)$/;
 const CHORD_FULL = /^([A-G])([#b]?)([^\/^]*)(?:\^([0-9]+))?(?:\/([A-G])([#b]?))?$/;
+const CHORD_LOOSE = /^([A-Ga-g])([#b]?)([^\/^]*)((?:\^[0-9]+)?)((?:\/[A-Ga-g][#b]?)?)$/;
+const NAME_PREFIX = /^[A-Za-z][A-Za-z0-9_]*/;
+const COMMANDS = ["title", "tempo", "meter", "key", "track", "pattern", "swing", "voicing", "section", "play", "at",
+  "bar", "end", "repeat"];
+// spellings that other notations use for the qualities of LOMA
+const CHORD_ALIASES = new Map([["maj", ""], ["major", ""], ["M", ""], ["min", "m"], ["minor", "m"], ["mi", "m"], ["-", "m"],
+  ["M7", "maj7"], ["Maj7", "maj7"], ["ma7", "maj7"], ["major7", "maj7"], ["min7", "m7"], ["mi7", "m7"],
+  ["-7", "m7"], ["minor7", "m7"], ["dom7", "7"], ["+", "aug"], ["o", "dim"], ["o7", "dim7"],
+  ["m7-5", "m7b5"], ["min7b5", "m7b5"], ["sus", "sus4"], ["7sus", "7sus4"], ["M9", "maj9"],
+  ["Maj9", "maj9"], ["min9", "m9"], ["min6", "m6"], ["min11", "m11"], ["mM7", "mmaj7"],
+  ["mMaj7", "mmaj7"], ["minmaj7", "mmaj7"], ["add2", "add9"]]);
+
+// The valid chord symbol that a wrong one most likely stands for, or null.
+function chordHint(text) {
+  const m = CHORD_LOOSE.exec(text);
+  if (!m) return null;
+  let quality = m[3];
+  if (!(CHORDS_01.has(quality) || CHORDS_03.has(quality))) {
+    quality = CHORD_ALIASES.has(quality) ? CHORD_ALIASES.get(quality)
+      : closest(quality, [...CHORDS_01.keys(), ...CHORDS_03.keys()]);
+  }
+  if (quality === null) return null;
+  const fixed = asciiUpper(m[1]) + m[2] + quality + m[4] + asciiUpper(m[5].slice(0, 2)) + m[5].slice(2);
+  return fixed !== text && CHORD_FULL.test(fixed) ? fixed : null;
+}
 
 function trim(s) {
   return s.replace(/^[ \t]+/, "").replace(/[ \t]+$/, "");
@@ -309,7 +384,9 @@ function isExplicit(item) {
 class Parser {
   constructor() {
     this.song = { version: null, title: null, tempo: 120, meter: [4, 4], key: null, tracks: [],
-      patterns: new Map(), swings: new Map(), voicings: new Map(), sections: new Map(), plays: [], ats: [] };
+      patterns: new Map(), swings: new Map(), voicings: new Map(), sections: new Map(), plays: [], ats: [],
+      // filled only when the file has syntax errors (see SPEC 13.1)
+      failed: { pattern: new Set(), swing: new Set(), voicing: new Set(), section: new Set() }, orphans: [] };
     this.errors = [];
     this.seen = new Set();
     this.version = null;
@@ -322,6 +399,7 @@ class Parser {
     this.skipBar = false;
     this.barCount = 0;
     this.badTracks = new Set();
+    this.meterFailed = false;
   }
 
   need(ver, feature, line) {
@@ -343,7 +421,8 @@ class Parser {
   trackByName(name, line) {
     for (const t of this.song.tracks) if (t.name === name) return t;
     if (this.badTracks.has(name)) throw new Skip();
-    throw new LomaError("E008", "track '" + name + "' is not declared (declare it with 'track' before using it)", line);
+    const [text, extra] = hint(name, this.song.tracks.map((t) => t.name));
+    throw new LomaError("E008", "track '" + name + "' is not declared (declare it with 'track' before using it)." + text, line, extra);
   }
 
   once(key, line) {
@@ -394,7 +473,10 @@ class Parser {
       return value;
     }
     if (track.kind === "drums") {
-      if (!DRUMS.has(name)) throw new LomaError("E001", "unknown drum name '" + name + "'", line);
+      if (!DRUMS.has(name)) {
+        const [text, extra] = hint(name, DRUMS.keys());
+        throw new LomaError("E001", "unknown drum name '" + name + "' (known: " + Array.from(DRUMS.keys()).sort().join(", ") + ")." + text, line, extra);
+      }
       return DRUMS.get(name);
     }
     if (DRUMS.has(name)) throw new LomaError("E001", "'" + name + "' is a drum name but track " + track.name + " is not a drums track", line);
@@ -407,7 +489,11 @@ class Parser {
 
   chord(text, line) {
     const m = CHORD_FULL.exec(text);
-    if (!m || !(CHORDS_01.has(m[3]) || CHORDS_03.has(m[3]))) throw new LomaError("E005", "unknown chord '" + text + "'", line);
+    if (!m || !(CHORDS_01.has(m[3]) || CHORDS_03.has(m[3]))) {
+      const fixed = chordHint(text);
+      if (fixed === null) throw new LomaError("E005", "unknown chord '" + text + "'", line);
+      throw new LomaError("E005", "unknown chord '" + text + "'. Did you mean '" + fixed + "'?", line, { did_you_mean: fixed });
+    }
     const quality = m[3], inv = m[4], bassLetter = m[5];
     if (!CHORDS_01.has(quality)) this.need("0.3", "chord quality '" + quality + "'", line);
     const rootPc = PITCH_CLASS.get(m[1]) + accidental(m[2]);
@@ -627,7 +713,9 @@ class Parser {
       if (words.length < 4) throw new LomaError("E001", "usage: pattern NAME from OTHER [base=O] : INDEX=STEP ...", line);
       const src = this.song.patterns.get(words[3]);
       if (src === undefined) {
-        throw new LomaError("E004", "pattern '" + words[3] + "' is not defined (it must be defined before this line)", line);
+        if (this.song.failed.pattern.has(words[3])) throw new Skip();
+        const [text, extra] = hint(words[3], this.song.patterns.keys());
+        throw new LomaError("E004", "pattern '" + words[3] + "' is not defined (it must be defined before this line)." + text, line, extra);
       }
       const opts = this.options(words.slice(4), ["base"], line, "pattern");
       base = opts.has("base") ? this.baseOption(opts.get("base"), line) : src.base;
@@ -698,7 +786,7 @@ class Parser {
     if (words.length !== 2 || words[0] !== "loma") {
       throw new LomaError("E001", "the file must start with 'loma VERSION' (e.g. 'loma 1.0')", line);
     }
-    if (!VERSIONS.has(words[1])) throw new LomaError("E001", "unsupported version '" + words[1] + "'", line);
+    if (!VERSIONS.has(words[1])) throw new LomaError("E001", "unsupported version '" + words[1] + "' (supported: " + Array.from(VERSIONS.keys()).join(", ") + ")", line);
     this.song.version = words[1];
     this.version = VERSIONS.get(words[1]);
   }
@@ -876,6 +964,7 @@ class Parser {
     if (this.bar !== null) {
       for (const tl of this.bar.trackLines) {
         if (!tl.failed && tl.parts.every((p) => p.use === null && p.items.length === 0)) {
+          tl.failed = true;
           this.errors.push(new LomaError("E001", "empty track line", tl.line));
         }
       }
@@ -1002,7 +1091,7 @@ class Parser {
   continuation(code, line) {
     if (this.tl === null) {
       if (this.skipBar || this.afterTl) return;
-      throw new LomaError("E002", "unknown command '" + splitWords(code)[0] + "'", line);
+      throw this.unknownCommand(splitWords(code)[0], line);
     }
     try {
       this.need("0.2", "track content on more than one line", line);
@@ -1050,7 +1139,32 @@ class Parser {
     else if (first === "end") throw new LomaError("E001", "'end' without a matching 'section' or 'repeat'", line);
     else if (first === "bar" || first === "repeat" || TRACK_LINE.test(code)) {
       throw new LomaError("E001", "'" + first + "' outside a section", line);
-    } else throw new LomaError("E002", "unknown command '" + first + "'", line);
+    } else throw this.unknownCommand(first, line);
+  }
+
+  unknownCommand(word, line) {
+    const name = word.split("{")[0];
+    if (this.song.tracks.some((t) => t.name === name)) {
+      return new LomaError("E002", "unknown command '" + word + "' (a track line needs ':' after the track name and its attributes)", line);
+    }
+    const [text, extra] = hint(word, COMMANDS);
+    return new LomaError("E002", "unknown command '" + word + "'." + text, line, extra);
+  }
+
+  // A top-level statement; a failed definition is remembered, so that its uses are not reported too.
+  top(code, words, line) {
+    try {
+      this.topLine(code, words, line);
+    } catch (e) {
+      if (e instanceof LomaError || e instanceof Skip) {
+        const first = words[0];
+        const m = words.length > 1 ? NAME_PREFIX.exec(words[1]) : null;
+        if (["pattern", "swing", "voicing", "section"].includes(first) && m) this.song.failed[first].add(m[0]);
+        if (first === "section" && this.section !== null) this.song.orphans.push(this.section);
+        if (first === "meter") this.meterFailed = true;
+      }
+      throw e;
+    }
   }
 
   run(text) {
@@ -1067,7 +1181,7 @@ class Parser {
           const name = this.section.name;
           this.closeSection();
           try {
-            this.topLine(code, words, ln);
+            this.top(code, words, ln);
           } catch (e) {
             if (!(e instanceof LomaError || e instanceof Skip)) throw e;
           }
@@ -1075,7 +1189,7 @@ class Parser {
         } else if (this.section !== null) {
           this.sectionLine(code, words, ln);
         } else {
-          this.topLine(code, words, ln);
+          this.top(code, words, ln);
         }
       } catch (e) {
         if (e instanceof Skip) continue;
@@ -1096,14 +1210,23 @@ class Parser {
       }
       this.closeSection();
     }
-    if (this.errors.length > 0) throw new LomaErrors(this.errors);
     return this.song;
   }
 }
 
+// Text -> { song, errors, checkable }. With syntax errors the song holds what could be read;
+// 'checkable' says whether its bars can still be validated (SPEC 13.1).
+function parsePartial(text) {
+  if (text.startsWith("\ufeff")) text = text.slice(1);
+  const p = new Parser();
+  const song = p.run(text);
+  return { song: song, errors: p.errors, checkable: p.version !== null && !p.meterFailed };
+}
+
 function parse(text) {
-  if (text.startsWith("﻿")) text = text.slice(1);
-  return new Parser().run(text);
+  const r = parsePartial(text);
+  if (r.errors.length > 0) throw new LomaErrors(r.errors);
+  return r.song;
 }
 
 // ---------------------------------------------------------------------------- expansion
@@ -1141,7 +1264,7 @@ function transposed(pitch, transpose, drums, line, ctx) {
   if (drums || transpose === 0) return pitch;
   const p = pitch + transpose;
   if (p < 0 || p > 127) {
-    throw new LomaError("E006", "transposition by " + transpose + " moves pitch " + pitch + " outside the MIDI range 0-127 (result " + p + ")", line, ctx);
+    throw new LomaError("E006", "transposition by " + (transpose < 0 ? "" : "+") + transpose + " moves pitch " + pitch + " outside the MIDI range 0-127 (result " + p + ")", line, ctx);
   }
   return p;
 }
@@ -1164,6 +1287,12 @@ function ramp(a, b, start, length) {
   return out;
 }
 
+function undefinedName(song, kind, names, name, line, ctx) {
+  if (song.failed[kind].has(name)) return new Quiet();
+  const [text, extra] = hint(name, names);
+  return new LomaError("E004", kind + " '" + name + "' is not defined." + text, line, Object.assign({}, ctx, extra));
+}
+
 class BarExpander {
   constructor(song, budget) {
     this.song = song;
@@ -1179,7 +1308,7 @@ class BarExpander {
     let swing = 0;
     if (tl.attrs.swing !== undefined) {
       const sw = this.song.swings.get(tl.attrs.swing);
-      if (sw === undefined) throw new LomaError("E004", "swing '" + tl.attrs.swing + "' is not defined", tl.line, tctx);
+      if (sw === undefined) throw undefinedName(this.song, "swing", this.song.swings.keys(), tl.attrs.swing, tl.line, tctx);
       if (p % sw.grid === 0) swing = sw.table[(p / sw.grid) % sw.table.length];
     }
     return [m, swing];
@@ -1209,7 +1338,7 @@ class BarExpander {
     const pats = [];
     for (const name of part.use) {
       const pat = this.song.patterns.get(name);
-      if (pat === undefined) throw new LomaError("E004", "pattern '" + name + "' is not defined", tl.line, tctx);
+      if (pat === undefined) throw undefinedName(this.song, "pattern", this.song.patterns.keys(), name, tl.line, tctx);
       pats.push(pat);
     }
     const total = pats.reduce((s, x) => s + x.length, 0);
@@ -1253,7 +1382,7 @@ class BarExpander {
       let pitches, noteAttrs;
       if (it.kind === "voiced") {
         const voicing = this.song.voicings.get(it.name);
-        if (voicing === undefined) throw new LomaError("E004", "voicing '" + it.name + "' is not defined", it.line, tctx);
+        if (voicing === undefined) throw undefinedName(this.song, "voicing", this.song.voicings.keys(), it.name, it.line, tctx);
         const chord = bar.chords[Math.min(Math.floor(p / seg), bar.chords.length - 1)];
         pitches = voicing.tones.map((t) => tonePitch(t, chord, voicing.base, it.line, tctx));
         noteAttrs = pitches.map(() => ({}));
@@ -1298,6 +1427,7 @@ class BarExpander {
     const seg = barLen / n;
     const result = [];
     for (const tl of bar.trackLines) {
+      if (tl.failed) continue;              // only in a file with syntax errors
       const tctx = Object.assign({}, ctx, { track: tl.track.name });
       const single = tl.parts.length === 1;
       if (!single && tl.parts.length !== n) {
@@ -1305,18 +1435,23 @@ class BarExpander {
           Object.assign({}, tctx, { expected: n, got: tl.parts.length }));
       }
       const out = [];
-      tl.parts.forEach((part, k) => {
-        if (part.use !== null) {
-          const segments = single ? bar.chords.map((_, kk) => kk) : [k];
-          for (const kk of segments) {
-            this.fillPattern(tl, part, bar.chords[kk], start, kk * seg, seg, barLen, playIdx, transpose, tctx, out, n === 1);
+      try {
+        tl.parts.forEach((part, k) => {
+          if (part.use !== null) {
+            const segments = single ? bar.chords.map((_, kk) => kk) : [k];
+            for (const kk of segments) {
+              this.fillPattern(tl, part, bar.chords[kk], start, kk * seg, seg, barLen, playIdx, transpose, tctx, out, n === 1);
+            }
+          } else if (single) {
+            this.fillExplicit(tl, part, bar, seg, start, 0, barLen, barLen, playIdx, transpose, tctx, out, true);
+          } else {
+            this.fillExplicit(tl, part, bar, seg, start, k * seg, seg, barLen, playIdx, transpose, tctx, out, false);
           }
-        } else if (single) {
-          this.fillExplicit(tl, part, bar, seg, start, 0, barLen, barLen, playIdx, transpose, tctx, out, true);
-        } else {
-          this.fillExplicit(tl, part, bar, seg, start, k * seg, seg, barLen, playIdx, transpose, tctx, out, false);
-        }
-      });
+        });
+      } catch (e) {
+        if (e instanceof Quiet) continue;
+        throw e;
+      }
       result.push([tl.track.index, out]);
     }
     return result;
@@ -1409,6 +1544,49 @@ function compareKeys(a, b) {
   return 0;
 }
 
+// Bar checks of the semantic phase on a file that has syntax errors (SPEC 13.1). Every bar that
+// could be read is validated once for each 'play' that uses it; the position in the song does
+// not matter for these errors. Returns the list of errors.
+function checkBars(song) {
+  const errors = [];
+  const expander = new BarExpander(song, new Budget());
+  const meterLen = song.meter[0] * (WHOLE / song.meter[1]);
+  const todo = [];
+  const played = new Set();
+  song.plays.forEach((play, pi) => {
+    const sec = song.sections.get(play.name);
+    if (sec === undefined) {
+      if (!song.failed.section.has(play.name)) {
+        const [text, extra] = hint(play.name, song.sections.keys());
+        errors.push(new LomaError("E004", "section '" + play.name + "' is not defined." + text, play.line, extra));
+      }
+      return;
+    }
+    played.add(play.name);
+    todo.push([sec, pi, play.transpose]);
+  });
+  for (const sec of song.sections.values()) if (!played.has(sec.name)) todo.push([sec, -1, 0]);
+  for (const sec of song.orphans) todo.push([sec, -1, 0]);
+  try {
+    for (const [sec, pi, transpose] of todo) {
+      const flat = [];
+      allBars(sec.body, flat);
+      for (const bar of flat) {
+        try {
+          expander.expand(sec, bar, 0, pi, transpose, bar.lenTicks || meterLen);
+        } catch (e) {
+          if (!(e instanceof LomaError)) throw e;
+          errors.push(e);
+        }
+      }
+    }
+  } catch (e) {
+    if (e instanceof LomaErrors) return [];  // a limit was exceeded: only the syntax errors are reported
+    throw e;
+  }
+  return errors;
+}
+
 function compileSong(song) {
   const errors = [];
   const budget = new Budget();
@@ -1421,7 +1599,8 @@ function compileSong(song) {
   song.plays.forEach((play, pi) => {
     const sec = song.sections.get(play.name);
     if (sec === undefined) {
-      errors.push(new LomaError("E004", "section '" + play.name + "' is not defined", play.line));
+      const [text, extra] = hint(play.name, song.sections.keys());
+      errors.push(new LomaError("E004", "section '" + play.name + "' is not defined." + text, play.line, extra));
       return;
     }
     played.add(play.name);
@@ -1638,7 +1817,9 @@ function writeMidi(compiled) {
 }
 
 function compileText(text) {
-  const compiled = compileSong(parse(text));
+  const r = parsePartial(text);
+  if (r.errors.length > 0) throw new LomaErrors(r.errors.concat(r.checkable ? checkBars(r.song) : []));
+  const compiled = compileSong(r.song);
   return { compiled: compiled, midi: writeMidi(compiled) };
 }
 

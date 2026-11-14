@@ -489,7 +489,7 @@ Ogni errore ha un **codice**, una **riga** e un messaggio; dove ha senso, anche 
 E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 1680. Missing 240 ticks (= /8).
 ```
 
-Forma JSON (`--json`): un array di oggetti. `code` e `line` sono obbligatori; gli altri campi SHOULD esserci. Un compilatore MAY aggiungere `suggestion` (per esempio `"suggestion": "add_rest", "duration": "/8"`), ma non modifica mai il file.
+Forma JSON (`--json`): un array di oggetti. `code` e `line` sono obbligatori; gli altri campi SHOULD esserci. Un compilatore MAY aggiungere `suggestion` (per esempio `"suggestion": "add_rest", "duration": "/8"`) e, per un nome che sembra scritto male, `did_you_mean` con il nome valido più vicino (per esempio `"did_you_mean": "Cmaj7"`), ma non modifica mai il file. La suite di conformità confronta solo `code` e `line`: messaggi e suggerimenti non sono normativi.
 
 ```json
 [{"code": "E003", "line": 14, "section": "verse", "bar": 2, "chord": "Ab", "track": "RH",
@@ -525,8 +525,18 @@ Forma JSON (`--json`): un array di oggetti. `code` e `line` sono obbligatori; gl
 
 Gli errori sono riportati **ordinati per riga**, poi per codice, senza ripetizioni (stesso codice, stessa riga, stesso track).
 
-1. **Fase sintattica**, riga per riga: al massimo **un errore per riga**. Se questa fase trova errori, la fase successiva non parte.
-2. **Fase semantica**, solo su un file sintatticamente pulito: per ogni battuta il **primo** errore, seguendo le linee di track nell'ordine in cui sono scritte (`E014`, `E021`, `E004`, `E009`, `E010`, `E006`, `E003`); poi le legature (`E012`), poi note duplicate ed eventi oltre il limite (`E017`, `E018`). Le sezioni mai eseguite sono validate battuta per battuta.
+1. **Fase sintattica**, riga per riga: al massimo **un errore per riga**.
+2. **Fase semantica**: una sezione non definita in un `play` (`E004`); per ogni battuta il **primo** errore, seguendo le linee di track nell'ordine in cui sono scritte (`E014`, `E021`, `E004`, `E009`, `E010`, `E006`, `E003`); poi le legature (`E012`), poi note duplicate ed eventi oltre il limite (`E017`, `E018`). Le sezioni mai eseguite sono validate battuta per battuta.
+
+Le due fasi sono riportate insieme, così un solo giro di correzioni vede più errori possibile. Quando la fase sintattica ha trovato errori, la fase semantica è **ridotta** a ciò che non dipende dalle righe mancanti:
+
+- si eseguono solo il controllo delle sezioni non definite e i controlli di battuta; legature, note duplicate e limiti (`E012`, `E017`, `E018`) si controllano solo su un file sintatticamente pulito;
+- una battuta con la riga `bar` sbagliata non viene controllata; nelle altre battute una linea di track con un errore di sintassi (anche vuota) viene saltata, e il primo errore si cerca fra le linee rimanenti;
+- l'uso di un pattern, uno swing, un voicing o una sezione la cui definizione ha un errore di sintassi non è un errore: quella linea di track (o quel `play`) viene saltata. Il nome di una definizione fallita è il più lungo nome valido all'inizio della parola che segue la parola chiave;
+- una sezione con la riga `section` sbagliata viene validata come una sezione mai eseguita;
+- ogni battuta è controllata una volta per ogni `play` che usa la sua sezione, con la trasposizione di quel `play`;
+- se la riga `loma` o l'istruzione `meter` è sbagliata, la fase semantica non parte;
+- se durante la fase ridotta si supera un limite fatale (§12), i suoi errori sono scartati e si riportano solo gli errori di sintassi.
 
 Regole di ripresa nella fase sintattica, per non segnalare errori a cascata (SHOULD):
 

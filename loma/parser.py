@@ -6,7 +6,7 @@ from .model import (Song, Track, PStep, Pattern, Swing, Voicing, Chord, Item, Pa
                     Bar, Repeat, Section, Play, AtEvent, PITCH_CLASS, DRUMS, CHORD_INTERVALS,
                     CHORDS_01, TONES_01, tone_spec, KEY_MAJOR, KEY_MINOR, VALID_DENOMINATORS,
                     MAX_TICK, MAX_REPEAT, MAX_DEPTH, DEFAULT_VEL, GATE_PCT, VERSIONS, RESERVED)
-from .util import duration_ticks, to_int
+from .util import duration_ticks, to_int, closest, hint, ascii_upper
 
 WS = " \t"
 NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
@@ -22,6 +22,29 @@ BEND_RE = re.compile(r"bend=(-?[0-9]+)(?:>(-?[0-9]+))?")
 CHORD_RE = re.compile(r"([A-G])([#b]?)([^/^]*)(?:\^([0-9]+))?(?:/([A-G])([#b]?))?")
 TOP_KEYWORDS = ("title", "tempo", "meter", "key", "track", "pattern", "swing", "voicing",
                 "section", "play", "at")
+COMMANDS = TOP_KEYWORDS + ("bar", "end", "repeat")
+CHORD_LOOSE = re.compile(r"([A-Ga-g])([#b]?)([^/^]*)((?:\^[0-9]+)?)((?:/[A-Ga-g][#b]?)?)")
+# spellings that other notations use for the qualities of LOMA
+CHORD_ALIASES = {"maj": "", "major": "", "M": "", "min": "m", "minor": "m", "mi": "m", "-": "m",
+                 "M7": "maj7", "Maj7": "maj7", "ma7": "maj7", "major7": "maj7", "min7": "m7", "mi7": "m7",
+                 "-7": "m7", "minor7": "m7", "dom7": "7", "+": "aug", "o": "dim", "o7": "dim7",
+                 "m7-5": "m7b5", "min7b5": "m7b5", "sus": "sus4", "7sus": "7sus4", "M9": "maj9",
+                 "Maj9": "maj9", "min9": "m9", "min6": "m6", "min11": "m11", "mM7": "mmaj7",
+                 "mMaj7": "mmaj7", "minmaj7": "mmaj7", "add2": "add9"}
+
+
+def chord_hint(text):
+    """The valid chord symbol that a wrong one most likely stands for, or None."""
+    m = CHORD_LOOSE.fullmatch(text)
+    if not m:
+        return None
+    quality = m.group(3)
+    if quality not in CHORD_INTERVALS:
+        quality = CHORD_ALIASES[quality] if quality in CHORD_ALIASES else closest(quality, CHORD_INTERVALS)
+    if quality is None:
+        return None
+    fixed = ascii_upper(m.group(1)) + m.group(2) + quality + m.group(4) + ascii_upper(m.group(5)[:2]) + m.group(5)[2:]
+    return fixed if fixed != text and CHORD_RE.fullmatch(fixed) else None
 
 
 def split_words(text):
@@ -141,6 +164,7 @@ class Parser:
         self.skip_bar = False
         self.bar_count = 0
         self.bad_tracks = set()  # names whose 'track' declaration failed
+        self.meter_failed = False
 
     # ------------------------------------------------------------------ helpers
     def need(self, ver, feature, line):
@@ -163,7 +187,8 @@ class Parser:
                 return t
         if name in self.bad_tracks:
             raise _Skip()
-        raise LomaError("E008", "track '%s' is not declared (declare it with 'track' before using it)" % name, line)
+        text, extra = hint(name, [t.name for t in self.song.tracks])
+        raise LomaError("E008", "track '%s' is not declared (declare it with 'track' before using it).%s" % (name, text), line, **extra)
 
     def once(self, key, line):
         if key in self.seen:
@@ -219,7 +244,8 @@ class Parser:
             return value
         if track.kind == "drums":
             if name not in DRUMS:
-                raise LomaError("E001", "unknown drum name '%s' (known: %s)" % (name, ", ".join(sorted(DRUMS))), line)
+                text, extra = hint(name, DRUMS)
+                raise LomaError("E001", "unknown drum name '%s' (known: %s).%s" % (name, ", ".join(sorted(DRUMS)), text), line, **extra)
             return DRUMS[name]
         if name in DRUMS:
             raise LomaError("E001", "'%s' is a drum name but track %s is not a drums track" % (name, track.name), line)
@@ -234,7 +260,10 @@ class Parser:
     def chord(self, text, line):
         m = CHORD_RE.fullmatch(text)
         if not m or m.group(3) not in CHORD_INTERVALS:
-            raise LomaError("E005", "unknown chord '%s'" % text, line)
+            fixed = chord_hint(text)
+            if fixed is None:
+                raise LomaError("E005", "unknown chord '%s'" % text, line)
+            raise LomaError("E005", "unknown chord '%s'. Did you mean '%s'?" % (text, fixed), line, did_you_mean=fixed)
         letter, acc, quality, inv, bass_letter, bass_acc = m.groups()
         if quality not in CHORDS_01:
             self.need("0.3", "chord quality '%s'" % quality, line)
@@ -449,7 +478,10 @@ class Parser:
                 raise LomaError("E001", "usage: pattern NAME from OTHER [base=O] : INDEX=STEP ...", line)
             src = self.song.patterns.get(words[3])
             if src is None:
-                raise LomaError("E004", "pattern '%s' is not defined (it must be defined before this line)" % words[3], line)
+                if words[3] in self.song.failed["pattern"]:
+                    raise _Skip()
+                text, extra = hint(words[3], self.song.patterns)
+                raise LomaError("E004", "pattern '%s' is not defined (it must be defined before this line).%s" % (words[3], text), line, **extra)
             opts = self.options(words[4:], ("base",), line, "pattern")
             base = self.base_option(opts["base"], line) if "base" in opts else src.base
             steps = list(src.steps)
@@ -690,6 +722,7 @@ class Parser:
         if self.bar is not None:
             for tl in self.bar.track_lines:
                 if not tl.failed and all(p.use is None and not p.items for p in tl.parts):
+                    tl.failed = True
                     self.errors.append(LomaError("E001", "empty track line", tl.line))
         self.bar = self.tl = None
         self.after_tl = False
@@ -806,7 +839,7 @@ class Parser:
         if self.tl is None:
             if self.skip_bar or self.after_tl:
                 return                  # the line it would continue already failed
-            raise LomaError("E002", "unknown command '%s'" % split_words(code)[0], line)
+            raise self.unknown_command(split_words(code)[0], line)
         try:
             self.need("0.2", "track content on more than one line", line)
         except LomaError:
@@ -863,7 +896,29 @@ class Parser:
         elif first in ("bar", "repeat") or TRACK_LINE.fullmatch(code):
             raise LomaError("E001", "'%s' outside a section" % first, line)
         else:
-            raise LomaError("E002", "unknown command '%s'" % first, line)
+            raise self.unknown_command(first, line)
+
+    def unknown_command(self, word, line):
+        name = word.split("{")[0]
+        if any(t.name == name for t in self.song.tracks):
+            return LomaError("E002", "unknown command '%s' (a track line needs ':' after the track name and its attributes)" % word, line)
+        text, extra = hint(word, COMMANDS)
+        return LomaError("E002", "unknown command '%s'.%s" % (word, text), line, **extra)
+
+    def top(self, code, words, line):
+        """A top-level statement; a failed definition is remembered, so that its uses are not reported too."""
+        try:
+            self.top_line(code, words, line)
+        except (LomaError, _Skip):
+            first = words[0]
+            m = NAME_RE.match(words[1]) if len(words) > 1 else None
+            if first in ("pattern", "swing", "voicing", "section") and m:
+                self.song.failed[first].add(m.group(0))
+            if first == "section" and self.section is not None:
+                self.song.orphans.append(self.section)
+            if first == "meter":
+                self.meter_failed = True
+            raise
 
     # ------------------------------------------------------------------ driver
     def run(self, text):
@@ -880,14 +935,14 @@ class Parser:
                     name = self.section.name
                     self.close_section()
                     try:
-                        self.top_line(code, words, ln)
+                        self.top(code, words, ln)
                     except (LomaError, _Skip):
                         pass
                     raise LomaError("E001", "'%s' is not allowed inside section '%s' (missing 'end'?)" % (words[0], name), ln)
                 elif self.section is not None:
                     self.section_line(code, words, ln)
                 else:
-                    self.top_line(code, words, ln)
+                    self.top(code, words, ln)
             except _Skip:
                 pass
             except LomaError as e:
@@ -904,12 +959,24 @@ class Parser:
             else:
                 self.errors.append(LomaError("E001", "section '%s' is missing its 'end'" % self.section.name, self.section.line))
             self.close_section()
-        if self.errors:
-            raise LomaErrors(self.errors)
         return self.song
 
 
-def parse(text):
-    if text.startswith("﻿"):
+def parse_partial(text):
+    """Text -> (song, syntax errors, checkable).
+
+    With syntax errors the song holds what could be read; 'checkable' says whether its bars can
+    still be validated (SPEC 13.1)."""
+    if text.startswith("\ufeff"):
         text = text[1:]
-    return Parser().run(text)
+    p = Parser()
+    song = p.run(text)
+    return song, p.errors, p.version is not None and not p.meter_failed
+
+
+def parse(text):
+    """Text -> Song. Raises LomaErrors with the syntax errors."""
+    song, errors, _ = parse_partial(text)
+    if errors:
+        raise LomaErrors(errors)
+    return song

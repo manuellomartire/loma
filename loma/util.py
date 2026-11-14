@@ -23,6 +23,49 @@ def to_int(text, line=None):
     return int(text)
 
 
+def ascii_lower(text):
+    return "".join(chr(ord(c) + 32) if "A" <= c <= "Z" else c for c in text)
+
+
+def ascii_upper(text):
+    return "".join(chr(ord(c) - 32) if "a" <= c <= "z" else c for c in text)
+
+
+def edit_distance(a, b):
+    """Levenshtein distance between two strings, counted in code points."""
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def closest(name, candidates):
+    """The candidate nearest to a mistyped name, or None.
+
+    Case is ignored (ASCII only). A candidate is accepted within 2 edits, and only if the edits
+    are fewer than the length of both names; ties go to the first candidate in code point order."""
+    if not 0 < len(name) <= 64:
+        return None
+    low = ascii_lower(name)
+    best, best_d = None, 3
+    for cand in sorted(candidates):
+        d = edit_distance(low, ascii_lower(cand))
+        if d < best_d and d < len(cand) and d < len(name):
+            best, best_d = cand, d
+    return best
+
+
+def hint(name, candidates):
+    """(text to append to the message, extra fields of the error) for a mistyped name."""
+    cand = closest(name, candidates)
+    if cand is None or cand == name:
+        return "", {}
+    return " Did you mean '%s'?" % cand, {"did_you_mean": cand}
+
+
 def vlq(n):
     if n < 0 or n > 0x0FFFFFFF:
         raise ValueError("VLQ out of range")

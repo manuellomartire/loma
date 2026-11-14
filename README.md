@@ -7,6 +7,7 @@ LOMA is a text language for describing music, designed to be **written by an AI*
 - Full specification: [SPEC.md](SPEC.md) (English), [SPEC.it.md](SPEC.it.md) (Italian)
 - Formal grammar: [spec/grammar.ebnf](spec/grammar.ebnf)
 - Changes by version: [CHANGELOG.md](CHANGELOG.md)
+- Playground: https://manuellomartire.github.io/loma/
 
 ## An example
 
@@ -40,13 +41,13 @@ The AI writes intentions (chord `Cm`, the left hand plays the arpeggio, the melo
 
 Try it online: **https://manuellomartire.github.io/loma/**
 
-`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, read the errors next to their lines, play the result on a piano roll, download the MIDI file, or open a `.mid` file to turn it into LOMA. It embeds the JavaScript compiler, so there is no server. It is published with GitHub Pages: in a fork, choose the `docs` folder of the main branch in the repository settings.
+`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, read the errors next to their lines (and copy them for the AI that wrote the file), play the result on a piano roll, download the MIDI file, open a `.mid` file to turn it into LOMA, or copy a link that contains the piece. It embeds the JavaScript compiler, so there is no server. It is published with GitHub Pages: in a fork, choose the `docs` folder of the main branch in the repository settings.
 
 The sound comes from a small synthesizer inside the page, not from real instruments. After changing `js/loma.js`, the examples or `docs/playground.src.html`, rebuild the page with `python3 tools/build_web.py`.
 
 ## Usage
 
-Python 3.9 or later, no dependencies (tested with Python 3.11, 3.12 and 3.13; the second implementation with Node.js 22).
+Python 3.9 or later, no dependencies. The tests run on Linux, Windows and macOS; the second implementation needs Node.js 18 or later.
 
 ```
 python3 -m loma compile song.loma -o song.mid       # compile
@@ -59,9 +60,10 @@ python3 -m loma decompile song.mid -o song.loma     # from MIDI to LOMA
 
 After `pip install .` the command is `loma`. The file name may be `-` to read standard input. Exit status: 0 success, 1 errors in the file, 2 usage or I/O problem.
 
-An error says where and what to fix:
+An error says where and what to fix, and a mistyped name proposes the right one. Syntax errors and bar errors are reported in the same round, so that an AI can fix them all at once:
 
 ```
+E005 line 9: unknown chord 'Cmaj'. Did you mean 'C'?
 E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 1680. Missing 240 ticks (= /8).
 ```
 
@@ -72,7 +74,7 @@ E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 
 | `loma/` | Reference compiler in Python: parser, expansion, events, MIDI writer, decompiler, command line |
 | `js/` | Second implementation in JavaScript (Node.js and browser), used to check conformance |
 | `docs/` | The playground web page: `index.html` is self-contained and can be served with GitHub Pages |
-| `conformance/` | Conformance suite: 95 valid files with the expected bytes, 109 files with the expected errors, and the program that compares them |
+| `conformance/` | Conformance suite: 95 valid files with the expected bytes, 116 files with the expected errors, and the program that compares them |
 | `spec/` | EBNF grammar |
 | `tests/` | Automated tests |
 | `tools/` | Regeneration of the suite, comparison of the two implementations on random files, build of the web page |
@@ -91,7 +93,7 @@ python3 tools/fuzz_compare.py --count 5000                  # random files: Pyth
 
 What is verified:
 
-- **Same bytes from two implementations.** The Python and the JavaScript compilers produce the same events and the same bytes on all 204 cases of the suite and on thousands of randomly generated files, valid and invalid.
+- **Same bytes from two implementations.** The Python and the JavaScript compilers produce the same events and the same bytes on all 211 cases of the suite and on thousands of randomly generated files, valid and invalid.
 - **Bytes worked out by hand.** The minimal file in [SPEC.md §16.1](SPEC.md#161-example-with-the-expected-bytes) was computed by hand from the specification and matches the output.
 - **Round trip.** Every MIDI file of the suite, decompiled and compiled again, comes back identical.
 
@@ -116,6 +118,7 @@ What is **not** verified:
 | 0.3 — advanced harmony | Done |
 | 1.0 — stable specification, documentation, public suite | Done |
 | MIDI to LOMA, lyrics, syntax highlighting | Done |
+| Compiler 1.1 — errors in one round, suggestions, playground links | Done |
 
 ## Contributing
 

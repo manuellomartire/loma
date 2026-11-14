@@ -1,0 +1,17 @@
+loma 1.0
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track Q ch=2 program=0
+swing sw grid=/8 : 0 x
+voicing vo base=3 : 1 99
+section s
+  bar C
+    P{swing=sw}: C4/1
+    Q: *vo/1
+  bar C
+    P{swing=no}: C4/1
+  bar C
+    Q: *nope/1
+end
+play s

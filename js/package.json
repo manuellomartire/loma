@@ -1,8 +1,11 @@
 {
   "name": "loma-js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LOMA 1.0 compiler in JavaScript: the second implementation, used for conformance checking",
   "license": "MIT",
+  "author": "Manuel Lomartire",
+  "homepage": "https://manuellomartire.github.io/loma/",
+  "repository": { "type": "git", "url": "git+https://github.com/manuellomartire/loma.git", "directory": "js" },
   "main": "loma.js",
   "bin": { "loma-js": "loma.js" },
   "engines": { "node": ">=18" },

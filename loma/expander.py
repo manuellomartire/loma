@@ -7,7 +7,18 @@ from .errors import LomaError, LomaErrors
 from .events import Event, sort_events
 from .model import (Bar, MAX_TICK, MAX_NOTES, MAX_CONTROLS, MAX_BARS, MAX_ELEMENTS, DEFAULT_VEL,
                     GATE_PCT, BASS_TONE, WHOLE, PPQ, RAMP_STEP)
-from .util import floor_div, duration_name
+from .util import floor_div, duration_name, hint
+
+
+class _Quiet(Exception):
+    """A use of a name whose definition has a syntax error: the track line is skipped without an error."""
+
+
+def undefined(song, kind, table, name, line, ctx):
+    if name in song.failed[kind]:
+        return _Quiet()
+    text, extra = hint(name, table)
+    return LomaError("E004", "%s '%s' is not defined.%s" % (kind, name, text), line, **dict(ctx, **extra))
 
 
 class Compiled:
@@ -116,7 +127,7 @@ class BarExpander:
         if name is not None:
             sw = self.song.swings.get(name)
             if sw is None:
-                raise LomaError("E004", "swing '%s' is not defined" % name, tl.line, **tctx)
+                raise undefined(self.song, "swing", self.song.swings, name, tl.line, tctx)
             if p % sw.grid == 0:
                 swing = sw.table[(p // sw.grid) % len(sw.table)]
         return m, swing
@@ -148,7 +159,7 @@ class BarExpander:
         for name in part.use:
             pat = self.song.patterns.get(name)
             if pat is None:
-                raise LomaError("E004", "pattern '%s' is not defined" % name, tl.line, **tctx)
+                raise undefined(self.song, "pattern", self.song.patterns, name, tl.line, tctx)
             pats.append(pat)
         pos, i = 0, 0
         while pos < length:
@@ -185,7 +196,7 @@ class BarExpander:
             if it.kind == "voiced":
                 voicing = self.song.voicings.get(it.name)
                 if voicing is None:
-                    raise LomaError("E004", "voicing '%s' is not defined" % it.name, it.line, **tctx)
+                    raise undefined(self.song, "voicing", self.song.voicings, it.name, it.line, tctx)
                 chord = bar.chords[min(p // seg, len(bar.chords) - 1)]
                 pitches = [tone_pitch(t, chord, voicing.base, it.line, tctx) for t in voicing.tones]
                 note_attrs = [{}] * len(pitches)
@@ -226,21 +237,26 @@ class BarExpander:
         seg = bar_len // n
         result = []
         for tl in bar.track_lines:
+            if tl.failed:                   # only in a file with syntax errors
+                continue
             tctx = dict(ctx, track=tl.track.name)
             single = len(tl.parts) == 1
             if not single and len(tl.parts) != n:
                 raise LomaError("E021", "track line has %d segments but the bar has %d chord(s)" % (len(tl.parts), n),
                                 tl.line, expected=n, got=len(tl.parts), **tctx)
             out = []
-            for k, part in enumerate(tl.parts):
-                if part.use is not None:
-                    for kk in (range(n) if single else (k,)):
-                        self.fill_pattern(tl, part, bar.chords[kk], start, kk * seg, seg, bar_len,
-                                          play_idx, transpose, tctx, out, n == 1)
-                elif single:
-                    self.fill_explicit(tl, part, bar, seg, start, 0, bar_len, bar_len, play_idx, transpose, tctx, out, True)
-                else:
-                    self.fill_explicit(tl, part, bar, seg, start, k * seg, seg, bar_len, play_idx, transpose, tctx, out, False)
+            try:
+                for k, part in enumerate(tl.parts):
+                    if part.use is not None:
+                        for kk in (range(n) if single else (k,)):
+                            self.fill_pattern(tl, part, bar.chords[kk], start, kk * seg, seg, bar_len,
+                                              play_idx, transpose, tctx, out, n == 1)
+                    elif single:
+                        self.fill_explicit(tl, part, bar, seg, start, 0, bar_len, bar_len, play_idx, transpose, tctx, out, True)
+                    else:
+                        self.fill_explicit(tl, part, bar, seg, start, k * seg, seg, bar_len, play_idx, transpose, tctx, out, False)
+            except _Quiet:
+                continue
             result.append((tl.track.index, out))
         return result
 
@@ -326,6 +342,40 @@ def resolve_ties(track, items, errors):
     return cont, total
 
 
+def check_bars(song):
+    """Bar checks of the semantic phase on a file that has syntax errors (SPEC 13.1).
+
+    Every bar that could be read is validated once for each 'play' that uses it; the position
+    in the song does not matter for these errors. Returns the list of errors."""
+    errors = []
+    expander = BarExpander(song, Budget())
+    meter_len = song.meter[0] * (WHOLE // song.meter[1])
+    todo, played = [], set()
+    for pi, play in enumerate(song.plays):
+        sec = song.sections.get(play.name)
+        if sec is None:
+            if play.name not in song.failed["section"]:
+                text, extra = hint(play.name, song.sections)
+                errors.append(LomaError("E004", "section '%s' is not defined.%s" % (play.name, text), play.line, **extra))
+            continue
+        played.add(play.name)
+        todo.append((sec, pi, play.transpose))
+    todo += [(sec, -1, 0) for sec in song.sections.values() if sec.name not in played]
+    todo += [(sec, -1, 0) for sec in song.orphans]
+    try:
+        for sec, pi, transpose in todo:
+            flat = []
+            all_bars(sec.body, flat)
+            for bar in flat:
+                try:
+                    expander.expand(sec, bar, 0, pi, transpose, bar.len_ticks or meter_len)
+                except LomaError as e:
+                    errors.append(e)
+    except LomaErrors:
+        return []                           # a limit was exceeded: only the syntax errors are reported
+    return errors
+
+
 def compile_song(song):
     errors = []
     budget = Budget()
@@ -337,7 +387,8 @@ def compile_song(song):
     for pi, play in enumerate(song.plays):
         sec = song.sections.get(play.name)
         if sec is None:
-            errors.append(LomaError("E004", "section '%s' is not defined" % play.name, play.line))
+            text, extra = hint(play.name, song.sections)
+            errors.append(LomaError("E004", "section '%s' is not defined.%s" % (play.name, text), play.line, **extra))
             continue
         played.add(play.name)
         bars += play.times * count_bars(sec.body)

@@ -489,7 +489,7 @@ Every error has a **code**, a **line** and a message; where it makes sense, also
 E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 1680. Missing 240 ticks (= /8).
 ```
 
-JSON form (`--json`): an array of objects. `code` and `line` are required; the other fields SHOULD be present. A compiler MAY add `suggestion` (for example `"suggestion": "add_rest", "duration": "/8"`), but it never changes the file.
+JSON form (`--json`): an array of objects. `code` and `line` are required; the other fields SHOULD be present. A compiler MAY add `suggestion` (for example `"suggestion": "add_rest", "duration": "/8"`) and, for a name that looks mistyped, `did_you_mean` with the nearest valid name (for example `"did_you_mean": "Cmaj7"`), but it never changes the file. Only `code` and `line` are compared by the conformance suite: messages and suggestions are not normative.
 
 ```json
 [{"code": "E003", "line": 14, "section": "verse", "bar": 2, "chord": "Ab", "track": "RH",
@@ -525,8 +525,18 @@ JSON form (`--json`): an array of objects. `code` and `line` are required; the o
 
 Errors are reported **sorted by line**, then by code, without repetitions (same code, same line, same track).
 
-1. **Syntax phase**, line by line: at most **one error per line**. If this phase finds errors, the next one does not run.
-2. **Semantic phase**, only on a syntactically clean file: for each bar the **first** error, following the track lines in the order they are written (`E014`, `E021`, `E004`, `E009`, `E010`, `E006`, `E003`); then ties (`E012`), then duplicate notes and events past the limit (`E017`, `E018`). Sections that are never played are validated bar by bar.
+1. **Syntax phase**, line by line: at most **one error per line**.
+2. **Semantic phase**: an undefined section in a `play` (`E004`); for each bar the **first** error, following the track lines in the order they are written (`E014`, `E021`, `E004`, `E009`, `E010`, `E006`, `E003`); then ties (`E012`), then duplicate notes and events past the limit (`E017`, `E018`). Sections that are never played are validated bar by bar.
+
+The two phases are reported together, so that one round of corrections sees as many errors as possible. When the syntax phase found errors, the semantic phase is **reduced** to what does not depend on the missing lines:
+
+- only the undefined sections and the bar checks run; ties, duplicate notes and limits (`E012`, `E017`, `E018`) are checked only on a syntactically clean file;
+- a bar whose `bar` line is wrong is not checked; in the other bars a track line with a syntax error (an empty one included) is skipped, and the first error is looked for among the remaining lines;
+- the use of a pattern, swing, voicing or section whose definition has a syntax error is not an error: that track line (or that `play`) is skipped. The name of a failed definition is the longest valid name at the start of the word after the keyword;
+- a section whose `section` line is wrong is validated like a section that is never played;
+- each bar is checked once for every `play` that uses its section, with the transposition of that `play`;
+- if the `loma` line or the `meter` statement is wrong, the semantic phase does not run;
+- if a fatal limit (§12) is exceeded during the reduced phase, its errors are dropped and only the syntax errors are reported.
 
 Recovery rules of the syntax phase, to avoid cascades of errors (SHOULD):
 

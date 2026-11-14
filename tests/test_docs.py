@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -49,6 +50,15 @@ class Documentation(unittest.TestCase):
             self.assertEqual(len(re.findall(pattern, en, re.M)), len(re.findall(pattern, it, re.M)), pattern)
         events = lambda text: [len(compile_text(b)[0].events) for b in re.findall(r"```loma\n(.*?)```", text, re.S)]
         self.assertEqual(events(en), events(it))
+
+    def test_translated_documents_have_the_same_structure(self):
+        for en, it in (("CHANGELOG.md", "CHANGELOG.it.md"), (os.path.join("conformance", "README.md"), os.path.join("conformance", "README.it.md")),
+                       (os.path.join("experiment", "README.md"), os.path.join("experiment", "README.it.md"))):
+            a, b = read(en), read(it)
+            for pattern in (r"^#+ ", r"^ *- ", r"^\| ", r"^```", r"^[0-9]+\. "):
+                self.assertEqual(len(re.findall(pattern, a, re.M)), len(re.findall(pattern, b, re.M)), (en, pattern))
+            self.assertIn("(%s)" % os.path.basename(it), a)
+            self.assertIn("(%s)" % os.path.basename(en), b)
 
     def test_spec_tables_match_the_code(self):
         for name in ("SPEC.md", "SPEC.it.md"):
@@ -136,13 +146,18 @@ class Examples(unittest.TestCase):
             self.skipTest("Node.js is not installed")
         probe = scripts[0] + ("\nconst h = require('crypto');"
                               "console.log(JSON.stringify(EXAMPLES.map((e) => [e.source, h.createHash('sha256').update(LOMA.compileText(e.source).midi).digest('hex')])));")
-        out = subprocess.run([node, "-e", probe], capture_output=True, text=True)
+        with tempfile.TemporaryDirectory() as tmp:      # a file: the script is too long for a Windows command line
+            script = os.path.join(tmp, "probe.js")
+            with open(script, "w", encoding="utf-8", newline="\n") as f:
+                f.write(probe)
+            out = subprocess.run([node, script], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(out.returncode, 0, out.stderr)
         pairs = json.loads(out.stdout)
         self.assertEqual(len(pairs), 5)
         for source, digest in pairs:
             self.assertEqual(sha256(compile_text(source)[1]), digest)
-        self.assertEqual(subprocess.run([node, "--check", "-"], input=scripts[1], capture_output=True, text=True).returncode, 0)
+        self.assertEqual(subprocess.run([node, "--check", "-"], input=scripts[1], capture_output=True, text=True,
+                                        encoding="utf-8").returncode, 0)
 
     def test_json_files_are_valid(self):
         for name in (os.path.join("editors", "vscode", "syntaxes", "loma.tmLanguage.json"),
@@ -155,7 +170,7 @@ class Examples(unittest.TestCase):
                            cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout, read(os.path.join("experiment", "results.md")))
-        self.assertIn("| reference | brano3 | 1 | sì | sì | 32 | 5 |", r.stdout)
+        self.assertIn("| reference | brano3 | 1 | yes | yes | 32 | 5 |", r.stdout)
 
 
 if __name__ == "__main__":
