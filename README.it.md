@@ -95,7 +95,7 @@ Che cosa è verificato:
 
 Che cosa **non** è verificato:
 
-- Le due implementazioni hanno lo stesso autore. Un errore di interpretazione della specifica può essere presente in entrambe: la prova decisiva resta un compilatore scritto da un'altra persona partendo solo da `SPEC.it.md`.
+- Le due implementazioni hanno lo stesso autore. Un errore di interpretazione della specifica può essere presente in entrambe: la prova decisiva resta un compilatore scritto da un'altra persona partendo solo da `SPEC.it.md` o `SPEC.md`.
 - Nessuno ha ancora ascoltato i brani di esempio con criterio: LOMA garantisce che il MIDI sia sempre lo stesso, non che suoni bene.
 - L'esperimento con più AI (`experiment/`) ha per ora solo i tre brani scritti dall'autore della specifica.
 

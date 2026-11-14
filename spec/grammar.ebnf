@@ -12,7 +12,7 @@
    are separated by ws unless the grammar writes them adjacent.
 
    Rules that the grammar cannot express (ranges, declared names, bar lengths, the language
-   version that each construct needs) are in SPEC.md; the section is given in brackets. *)
+   version that each construct needs) are in SPEC.md (English) and SPEC.it.md (Italian); the section is given in brackets. *)
 
 file            = header , { statement } ;
 header          = "loma" , ws , version ;                                  (* first non-empty line *)

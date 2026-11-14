@@ -17,7 +17,7 @@ from loma.api import compile_text, sha256
 from loma.model import CHORD_INTERVALS, DRUMS, RESERVED, VERSIONS
 from loma.util import duration_ticks
 
-DOCS = ["README.md", "README.it.md", "SPEC.md", "SPEC.en.md", os.path.join("experiment", "prompt.md")]
+DOCS = ["README.md", "README.it.md", "SPEC.md", "SPEC.it.md", os.path.join("experiment", "prompt.md")]
 
 
 def read(name):
@@ -35,7 +35,7 @@ class Documentation(unittest.TestCase):
         self.assertGreaterEqual(total, 7)
 
     def test_both_specs_have_the_same_examples_and_structure(self):
-        it, en = read("SPEC.md"), read("SPEC.en.md")
+        it, en = read("SPEC.it.md"), read("SPEC.md")
         self.assertEqual(len(re.findall(r"^## ", it, re.M)), len(re.findall(r"^## ", en, re.M)))
         self.assertEqual(len(re.findall(r"^### ", it, re.M)), len(re.findall(r"^### ", en, re.M)))
         hashes = lambda text: [sha256(compile_text(b)[1]) for b in re.findall(r"```loma\n(.*?)```", text, re.S)]
@@ -43,7 +43,7 @@ class Documentation(unittest.TestCase):
         self.assertEqual(hashes(it)[0], "ab4d7aaa44d5b98d3df8d7df7937dbee852d20ce3869a8b5d4612758349bb460")
 
     def test_spec_tables_match_the_code(self):
-        for name in ("SPEC.md", "SPEC.en.md"):
+        for name in ("SPEC.md", "SPEC.it.md"):
             text = read(name)
             for quality, intervals in CHORD_INTERVALS.items():
                 if quality:
