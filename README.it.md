@@ -38,7 +38,9 @@ L'AI scrive le intenzioni (accordo `Cm`, la sinistra fa l'arpeggio, la melodia c
 
 ## Playground
 
-`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, leggi gli errori accanto alle righe, ascolti il risultato su un piano roll, scarichi il file MIDI, oppure apri un file `.mid` per trasformarlo in LOMA. Contiene il compilatore JavaScript, quindi non serve un server. Per pubblicarla con GitHub Pages scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
+Provalo online: **https://manuellomartire.github.io/loma/**
+
+`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, leggi gli errori accanto alle righe, ascolti il risultato su un piano roll, scarichi il file MIDI, oppure apri un file `.mid` per trasformarlo in LOMA. Contiene il compilatore JavaScript, quindi non serve un server. È pubblicata con GitHub Pages: in un fork scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
 
 Il suono viene da un piccolo sintetizzatore dentro la pagina, non da strumenti veri. Dopo aver cambiato `js/loma.js`, gli esempi o `docs/playground.src.html`, ricostruisci la pagina con `python3 tools/build_web.py`.
 
@@ -101,7 +103,7 @@ Che cosa **non** è verificato:
 
 ## Scrivere LOMA con un'AI
 
-[experiment/prompt.md](experiment/prompt.md) contiene un riferimento compatto del linguaggio e le consegne dei tre brani di prova, pronto da incollare. Il ciclo previsto è: l'AI scrive il file, `loma check --json` restituisce gli errori, l'AI corregge solo le righe indicate.
+[experiment/prompt.it.md](experiment/prompt.it.md) (italiano) e [experiment/prompt.md](experiment/prompt.md) (inglese) contengono un riferimento compatto del linguaggio e le consegne dei tre brani di prova, pronti da incollare. Il ciclo previsto è: l'AI scrive il file, `loma check --json` restituisce gli errori, l'AI corregge solo le righe indicate.
 
 ## Stato della roadmap
 

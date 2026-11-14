@@ -38,7 +38,9 @@ The AI writes intentions (chord `Cm`, the left hand plays the arpeggio, the melo
 
 ## Playground
 
-`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, read the errors next to their lines, play the result on a piano roll, download the MIDI file, or open a `.mid` file to turn it into LOMA. It embeds the JavaScript compiler, so there is no server. To publish it with GitHub Pages, choose the `docs` folder of the main branch in the repository settings.
+Try it online: **https://manuellomartire.github.io/loma/**
+
+`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, read the errors next to their lines, play the result on a piano roll, download the MIDI file, or open a `.mid` file to turn it into LOMA. It embeds the JavaScript compiler, so there is no server. It is published with GitHub Pages: in a fork, choose the `docs` folder of the main branch in the repository settings.
 
 The sound comes from a small synthesizer inside the page, not from real instruments. After changing `js/loma.js`, the examples or `docs/playground.src.html`, rebuild the page with `python3 tools/build_web.py`.
 
@@ -101,7 +103,7 @@ What is **not** verified:
 
 ## Writing LOMA with an AI
 
-[experiment/prompt.md](experiment/prompt.md) (in Italian) contains a compact reference of the language and the assignments for the three test pieces, ready to paste. The intended loop: the AI writes the file, `loma check --json` returns the errors, the AI fixes only the lines indicated.
+[experiment/prompt.md](experiment/prompt.md) (English) and [experiment/prompt.it.md](experiment/prompt.it.md) (Italian) contain a compact reference of the language and the assignments for the three test pieces, ready to paste. The intended loop: the AI writes the file, `loma check --json` returns the errors, the AI fixes only the lines indicated.
 
 ## Roadmap status
 

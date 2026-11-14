@@ -17,7 +17,8 @@ from loma.api import compile_text, sha256
 from loma.model import CHORD_INTERVALS, DRUMS, RESERVED, VERSIONS
 from loma.util import duration_ticks
 
-DOCS = ["README.md", "README.it.md", "SPEC.md", "SPEC.it.md", os.path.join("experiment", "prompt.md")]
+DOCS = ["README.md", "README.it.md", "SPEC.md", "SPEC.it.md",
+        os.path.join("experiment", "prompt.md"), os.path.join("experiment", "prompt.it.md")]
 
 
 def read(name):
@@ -41,6 +42,13 @@ class Documentation(unittest.TestCase):
         hashes = lambda text: [sha256(compile_text(b)[1]) for b in re.findall(r"```loma\n(.*?)```", text, re.S)]
         self.assertEqual(hashes(it)[0], hashes(en)[0])
         self.assertEqual(hashes(it)[0], "ab4d7aaa44d5b98d3df8d7df7937dbee852d20ce3869a8b5d4612758349bb460")
+
+    def test_both_prompts_have_the_same_rules(self):
+        en, it = read(os.path.join("experiment", "prompt.md")), read(os.path.join("experiment", "prompt.it.md"))
+        for pattern in (r"^#+ ", r"^[0-9]+\. ", r"^\*\*", r"`[^`]+`"):
+            self.assertEqual(len(re.findall(pattern, en, re.M)), len(re.findall(pattern, it, re.M)), pattern)
+        events = lambda text: [len(compile_text(b)[0].events) for b in re.findall(r"```loma\n(.*?)```", text, re.S)]
+        self.assertEqual(events(en), events(it))
 
     def test_spec_tables_match_the_code(self):
         for name in ("SPEC.md", "SPEC.it.md"):

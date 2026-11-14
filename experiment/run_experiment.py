@@ -152,7 +152,7 @@ def report(results):
         lines.append("")
         lines.append("Sono presenti solo i brani `reference`, scritti dall'autore della specifica e del compilatore: "
                      "non sono una misura indipendente. L'esperimento è completo quando ci sono i brani di altri modelli, "
-                     "scritti partendo solo da `experiment/prompt.md`.")
+                     "scritti partendo solo da `experiment/prompt.md` o `experiment/prompt.it.md`.")
     return "\n".join(lines) + "\n"
 
 

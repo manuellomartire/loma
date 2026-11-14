@@ -4,7 +4,7 @@ L'ipotesi da verificare è questa: un modello riesce a scrivere musica in LOMA i
 
 ## Protocollo
 
-1. Dai a un'AI il testo di [prompt.md](prompt.md), senza altro.
+1. Dai a un'AI il testo di [prompt.md](prompt.md) (inglese) oppure di [prompt.it.md](prompt.it.md) (italiano), senza altro. Annota quale hai usato: le due versioni hanno le stesse regole, ma la lingua può cambiare il risultato.
 2. Salva ogni risposta così com'è:
 
    ```
