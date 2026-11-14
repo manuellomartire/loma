@@ -1,6 +1,6 @@
 # Suite di conformità di LOMA 1.0
 
-Questa cartella è la definizione operativa di "compilatore conforme" ([SPEC.it.md §2 e §17](../SPEC.it.md#2-conformità)). Serve a chi scrive un compilatore LOMA in qualsiasi linguaggio.
+Questa cartella è la definizione operativa di "compilatore conforme" ([SPEC.md §2 e §17](../SPEC.md#2-conformità)). Serve a chi scrive un compilatore LOMA in qualsiasi linguaggio.
 
 ## Contenuto
 
@@ -36,7 +36,7 @@ Con `--first-error-only` nei file non validi si confronta solo il primo errore: 
 
 I file attesi sono generati dal compilatore di riferimento con `tools/make_conformance.py`. Due eccezioni danno alla suite un punto fermo indipendente dal compilatore:
 
-- `valid/010_minimal.mid` coincide con i byte calcolati a mano in SPEC.it.md §16.1;
+- `valid/010_minimal.mid` coincide con i byte calcolati a mano in SPEC.md §16.1;
 - i valori di tempo di `valid/020_tempo_ramp` (100, 92, 85, 77, 70 BPM) e delle rampe di controller sono verificati a mano nei test.
 
 Gli hash dei casi che esistevano già nella 0.1 sono fissati nei test: non possono cambiare.

@@ -1,0 +1,112 @@
+(* LOMA 1.0 - formal grammar (ISO/IEC 14977 EBNF).
+
+   The grammar describes the syntax accepted by the reference compiler. It was written after
+   the implementation and is checked against it by the conformance suite.
+
+   LOMA is line oriented. A source file is UTF-8 text; an optional byte order mark is ignored.
+   Lines end with LF or CR LF. Before parsing, each line loses its comment and its leading and
+   trailing blanks; empty lines are skipped. A comment starts with "#" at the beginning of the
+   line or after a blank, outside double quotes, and runs to the end of the line.
+
+   Blanks are SPACE and TAB only. "ws" below means one or more blanks; inside a line, tokens
+   are separated by ws unless the grammar writes them adjacent.
+
+   Rules that the grammar cannot express (ranges, declared names, bar lengths, the language
+   version that each construct needs) are in SPEC.md; the section is given in brackets. *)
+
+file            = header , { statement } ;
+header          = "loma" , ws , version ;                                  (* first non-empty line *)
+version         = "0.1" | "0.2" | "0.3" | "1.0" ;
+
+statement       = title | tempo | meter | key | track | pattern | swing | voicing
+                | section | play | at ;
+
+(* ---- global statements [5] *)
+title           = "title" , ws , '"' , { char - '"' } , '"' ;
+tempo           = "tempo" , ws , integer ;                                 (* 4..400 *)
+meter           = "meter" , ws , integer , "/" , integer ;
+key             = "key" , ws , note letter , [ accidental ] , [ "m" ] ;
+track           = "track" , ws , name , ws , ( "drums" | track option , { ws , track option } ) ;
+track option    = "ch=" , integer | "program=" , integer ;
+
+(* ---- definitions [9] *)
+pattern         = "pattern" , ws , name , ws , "base=" , octave , ws , "dur=" , duration ,
+                  [ ws ] , ":" , step , { ws , step }
+                | "pattern" , ws , name , ws , "from" , ws , name , [ ws , "base=" , octave ] ,
+                  [ ws ] , ":" , { replacement } ;                         (* since 0.2 *)
+replacement     = integer , "=" , step ;
+step            = ( tone | "r" | "(" , tone , { ws , tone } , ")" ) , [ duration ] , [ attributes ] ;
+tone            = integer , { "+" | "-" } ;                                (* marks since 0.3 *)
+swing           = "swing" , ws , name , ws , "grid=" , duration , [ ws ] , ":" ,
+                  signed integer , { ws , signed integer } ;               (* since 0.2 *)
+voicing         = "voicing" , ws , name , ws , "base=" , octave , [ ws ] , ":" ,
+                  tone , { ws , tone } ;                                   (* since 0.3 *)
+
+(* ---- sections [10] *)
+section         = "section" , ws , name , newline , { block } , "end" ;
+block           = bar | repeat ;
+repeat          = "repeat" , ws , integer , newline , { block } , "end" , newline ;   (* since 0.2 *)
+bar             = "bar" , ws , bar item , { ws , bar item } , newline , { track line } ;
+bar item        = chord | "len=" , duration | "tempo=" , integer , [ ">" , integer ] ;
+track line      = name , [ line attributes ] , ":" , [ content ] , newline ,
+                  { content , newline } ;                                  (* more lines since 0.2 *)
+content         = segment , { "|" , segment } ;                            (* "|" since 0.2 *)
+segment         = [ "use" , ws , name , { "," , name } | element , { ws , element } ] ;
+
+(* ---- chords [8] *)
+chord           = note letter , [ accidental ] , quality , [ "^" , integer ] ,
+                  [ "/" , note letter , [ accidental ] ] ;                 (* "^" and "/" since 0.3 *)
+quality         = "" | "m" | "7" | "maj7" | "m7" | "dim" | "aug" | "sus2" | "sus4"
+                | "5" | "6" | "m6" | "dim7" | "m7b5" | "mmaj7" | "7sus4" | "7b9" | "7#9"
+                | "add9" | "madd9" | "9" | "maj9" | "m9" | "11" | "m11" | "13" ;
+                                                                           (* second and third line since 0.3 *)
+
+(* ---- track content [7] *)
+element         = note | rest | chord notes | voiced | control | lyric ;
+note            = pitch , duration , [ "~" ] , [ attributes ] ;
+rest            = "r" , duration ;
+chord notes     = "[" , pitch , [ attributes ] , { ws , pitch , [ attributes ] } , "]" ,
+                  duration , [ "~" ] , [ attributes ] ;
+voiced          = "*" , name , duration , [ "~" ] , [ attributes ] ;       (* since 0.3 *)
+control         = "pedal+" | "pedal-"
+                | "cc" , integer , "=" , integer , [ ">" , integer , duration ]      (* since 0.2 *)
+                | "bend=" , bend value , [ ">" , bend value , duration ] ;           (* since 0.2 *)
+lyric           = '"' , char - '"' , { char - '"' } , '"' ;                (* since 1.0 *)
+
+pitch           = note letter , [ accidental ] , octave                    (* melodic tracks *)
+                | drum name                                                (* drum tracks *)
+                | "m" , integer ;                                          (* since 1.0 *)
+drum name       = "kick" | "snare" | "hat" | "ohat" | "crash" | "ride" | "tom1" | "tom2" ;
+
+duration        = "/" , ( "#" , integer
+                        | integer , [ ".." | "." | "t" | "q" | "x" , integer , "/" , integer ] ) ;
+                                                                           (* "q" and "x" since 0.2 *)
+
+attributes      = "{" , [ attribute , { ws , attribute } ] , "}" ;
+attribute       = "v=" , integer | "o=" , signed integer | "d=" , integer
+                | "a=" , ( "leg" | "norm" | "stac" ) ;
+line attributes = "{" , [ line attribute , { ws , line attribute } ] , "}" ;
+line attribute  = attribute | "v=" , integer , ">" , integer | "swing=" , name ;   (* since 0.2 *)
+
+(* ---- arrangement [11] *)
+play            = "play" , ws , name , { ws , ( "x" , integer | "transpose=" , signed integer ) } ;
+at              = "at" , ws , integer , ws , name , ws , pitch , ws , at option , { ws , at option }
+                | "at" , ws , integer , ws , name , ws , "cc" , integer , "=" , integer    (* since 1.0 *)
+                | "at" , ws , integer , ws , name , ws , "bend=" , bend value             (* since 1.0 *)
+                | "at" , ws , integer , ws , name , ws , lyric                            (* since 1.0 *)
+                | "at" , ws , integer , ws , "tempo=" , integer ;                         (* since 1.0 *)
+at option       = "d=" , integer | "v=" , integer ;
+
+(* ---- lexical elements [4] *)
+name            = letter , { letter | digit | "_" } ;                      (* not a reserved word *)
+note letter     = "A" | "B" | "C" | "D" | "E" | "F" | "G" ;
+accidental      = "#" | "b" ;
+octave          = [ "-" ] , integer ;
+integer         = digit , { digit } ;                                      (* at most 9 digits *)
+signed integer  = [ "+" | "-" ] , integer ;
+bend value      = [ "-" ] , integer ;
+digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+letter          = "A" | ... | "Z" | "a" | ... | "z" ;                      (* ASCII letters only *)
+ws              = ( " " | "\t" ) , { " " | "\t" } ;
+newline         = ? end of the line ? ;
+char            = ? any Unicode character except the end of the line ? ;
