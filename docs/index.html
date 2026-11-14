@@ -80,6 +80,8 @@ nav a:hover, nav button:hover { background: none; color: var(--ink); }
   white-space: pre; overflow: auto; width: 100%; height: 100%; tab-size: 2; }
 #status { font-size: 14px; margin: 0; min-height: 21px; font-weight: 600; }
 #status.bad { color: var(--bad); }
+#status.stale { color: var(--muted); font-weight: 400; }
+#roll.stale { opacity: 0.35; }
 .facts dd, #clock { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 #errors { list-style: none; margin: 0; padding: 0; max-height: 230px; overflow: auto; border-top: 1px solid var(--faint); }
 #errors:empty { border: 0; }
@@ -140,6 +142,7 @@ summary { cursor: pointer; font-weight: 600; }
         <textarea id="src" spellcheck="false" wrap="off" autocomplete="off" autocapitalize="off" aria-labelledby="h-src"></textarea>
       </div>
       <div class="row">
+        <button id="compile" class="primary" type="button" data-t="compile"></button>
         <p id="status" role="status"></p>
         <span class="grow"></span>
         <button id="copyErrors" type="button" data-t="copyErrors" hidden></button>
@@ -2369,6 +2372,7 @@ const T = {
   en: {
     tagline: "Write music as text. The same file always compiles to the same MIDI, byte for byte.",
     source: "Source", playback: "Playback", open: "Open .loma or .mid", copy: "Copy", copied: "Copied",
+    compile: "Compile", stale: (k) => "Changed: press Compile (" + k + "+Enter) to check it and hear it.",
     spec: "Specification", aiPrompt: "Prompt for AIs", share: "Copy link", copyErrors: "Copy the errors for the AI",
     themeDark: "Dark theme", themeLight: "Light theme", tooLong: "This piece is too long for a link: download the .loma file instead.",
     badLink: "The link does not contain a readable piece.",
@@ -2393,6 +2397,7 @@ const T = {
   it: {
     tagline: "Scrivi la musica come testo. Lo stesso file produce sempre lo stesso MIDI, byte per byte.",
     source: "Sorgente", playback: "Riproduzione", open: "Apri .loma o .mid", copy: "Copia", copied: "Copiato",
+    compile: "Compila", stale: (k) => "Modificato: premi Compila (" + k + "+Invio) per controllarlo e ascoltarlo.",
     spec: "Specifica", aiPrompt: "Prompt per le AI", share: "Copia link", copyErrors: "Copia gli errori per l'AI",
     themeDark: "Tema scuro", themeLight: "Tema chiaro", tooLong: "Questo brano è troppo lungo per un link: scarica il file .loma.",
     badLink: "Il link non contiene un brano leggibile.",
@@ -2426,6 +2431,8 @@ const t = (k) => T[lang][k];
 const src = $("src"), gutter = $("gutter"), roll = $("roll");
 let model = null;          // playable view of the last valid compilation
 let lastErrors = [];
+let dirty = false;         // the source changed after the last compilation
+const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl";
 let muted = new Set();
 let playing = null;        // { ctx-relative start, timer, nodes }
 let playhead = 0;          // ticks
@@ -2491,6 +2498,8 @@ function buildModel(result) {
 function compile() {
   const text = src.value;
   store.set("loma-draft", text);
+  dirty = false;
+  roll.classList.remove("stale");
   let result = null;
   lastErrors = [];
   try {
@@ -2524,14 +2533,21 @@ function renderGutter() {
 function renderStatus() {
   const status = $("status"), list = $("errors");
   list.textContent = "";
-  $("copyErrors").hidden = lastErrors.length === 0;
+  $("copyErrors").hidden = lastErrors.length === 0 || dirty;
+  if (dirty) {                                  // the errors below are those of the last compilation
+    status.className = "stale";
+    status.textContent = t("stale")(MOD_KEY);
+  }
+  if (dirty && lastErrors.length === 0) return;
   if (lastErrors.length === 0) {
     status.className = "ok";
     status.textContent = t("valid");
     return;
   }
-  status.className = "bad";
-  status.textContent = t("errors")(lastErrors.length);
+  if (!dirty) {
+    status.className = "bad";
+    status.textContent = t("errors")(lastErrors.length);
+  }
   for (const e of lastErrors) {
     const li = document.createElement("li"), b = document.createElement("button");
     b.type = "button";
@@ -3013,10 +3029,27 @@ function applyLanguage() {
   draw();
 }
 
-let timer = 0;
-src.addEventListener("input", () => { renderGutter(); clearTimeout(timer); timer = setTimeout(compile, 250); });
+// Typing or pasting does not compile: the Compile button (or Ctrl/⌘+Enter) does.
+function markDirty() {
+  renderGutter();
+  store.set("loma-draft", src.value);
+  if (dirty) return;
+  dirty = true;
+  roll.classList.add("stale");
+  stop();
+  $("play").disabled = true;
+  $("saveMidi").disabled = true;
+  renderStatus();
+}
+src.addEventListener("input", markDirty);
+$("compile").addEventListener("click", compile);
 src.addEventListener("scroll", () => { gutter.scrollTop = src.scrollTop; });
 src.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    compile();
+    return;
+  }
   if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     src.setRangeText("  ", src.selectionStart, src.selectionEnd, "end");
@@ -3070,7 +3103,7 @@ $("theme").addEventListener("click", () => {
   document.documentElement.setAttribute("data-theme", next);
   store.set("loma-theme", next);
 });
-$("saveMidi").addEventListener("click", () => { if (model && lastErrors.length === 0) saveFile(baseName() + ".mid", model.midi, "midi"); });
+$("saveMidi").addEventListener("click", () => { if (model && lastErrors.length === 0 && !dirty) saveFile(baseName() + ".mid", model.midi, "midi"); });
 $("saveLoma").addEventListener("click", () => saveFile(baseName() + ".loma", src.value, "loma"));
 $("lang").addEventListener("click", () => { lang = lang === "it" ? "en" : "it"; store.set("loma-lang", lang); applyLanguage(); });
 window.addEventListener("resize", draw);

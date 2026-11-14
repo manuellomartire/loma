@@ -41,7 +41,7 @@ L'AI scrive le intenzioni (accordo `Cm`, la sinistra fa l'arpeggio, la melodia c
 
 Provalo online: **https://manuellomartire.github.io/loma/**
 
-`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, leggi gli errori accanto alle righe (e li copi per l'AI che ha scritto il file), ascolti il risultato su un piano roll, scarichi il file MIDI, apri un file `.mid` per trasformarlo in LOMA, oppure copi un link che contiene il brano. Contiene il compilatore JavaScript, quindi non serve un server. È pubblicata con GitHub Pages: in un fork scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
+`docs/index.html` è una pagina web che gira tutta nel browser: incolli o modifichi il LOMA, premi Compila (o Ctrl/⌘+Invio), leggi gli errori accanto alle righe (e li copi per l'AI che ha scritto il file), ascolti il risultato su un piano roll, scarichi il file MIDI, apri un file `.mid` per trasformarlo in LOMA, oppure copi un link che contiene il brano. Contiene il compilatore JavaScript, quindi non serve un server. È pubblicata con GitHub Pages: in un fork scegli la cartella `docs` del ramo principale nelle impostazioni del repository.
 
 Il suono viene da un piccolo sintetizzatore dentro la pagina, non da strumenti veri. Dopo aver cambiato `js/loma.js`, gli esempi o `docs/playground.src.html`, ricostruisci la pagina con `python3 tools/build_web.py`.
 

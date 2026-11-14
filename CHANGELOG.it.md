@@ -12,7 +12,7 @@ I byte prodotti dai file validi non cambiano. Cambia quali errori vengono riport
 - **Suggerimenti.** Un nome scritto male propone quello giusto: `unknown chord 'Cmaj'. Did you mean 'C'?`, e lo stesso per track, pattern, swing, voicing, sezioni, nomi di batteria e comandi. Nel JSON il campo è `did_you_mean`.
 - Una linea di track senza `:` dopo il nome ha un messaggio che lo dice.
 - Suite di conformità: 7 nuovi casi `X_mixed_*`; `X_syntax_before_semantics` è diventato `X_syntax_and_semantics`; cambia l'elenco atteso di `E007_tuplets`.
-- Playground: link al repository e alla specifica, link condivisibile del brano, "copia gli errori", pulsante per il tema chiaro o scuro, anteprima per i social.
+- Playground: pulsante Compila (o Ctrl/⌘+Invio) invece della compilazione mentre si scrive, link al repository e alla specifica, link condivisibile del brano, "copia gli errori", pulsante per il tema chiaro o scuro, anteprima per i social.
 - Documentazione in inglese e in italiano per changelog, suite di conformità, esperimento e consegna per le AI. Il rapporto dell'esperimento è in inglese.
 - Test su Linux, Windows e macOS; `.gitattributes` per mantenere i byte dei file della suite su ogni sistema.
 

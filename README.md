@@ -41,7 +41,7 @@ The AI writes intentions (chord `Cm`, the left hand plays the arpeggio, the melo
 
 Try it online: **https://manuellomartire.github.io/loma/**
 
-`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, read the errors next to their lines (and copy them for the AI that wrote the file), play the result on a piano roll, download the MIDI file, open a `.mid` file to turn it into LOMA, or copy a link that contains the piece. It embeds the JavaScript compiler, so there is no server. It is published with GitHub Pages: in a fork, choose the `docs` folder of the main branch in the repository settings.
+`docs/index.html` is a web page that runs entirely in the browser: paste or edit LOMA, press Compile (or Ctrl/⌘+Enter), read the errors next to their lines (and copy them for the AI that wrote the file), play the result on a piano roll, download the MIDI file, open a `.mid` file to turn it into LOMA, or copy a link that contains the piece. It embeds the JavaScript compiler, so there is no server. It is published with GitHub Pages: in a fork, choose the `docs` folder of the main branch in the repository settings.
 
 The sound comes from a small synthesizer inside the page, not from real instruments. After changing `js/loma.js`, the examples or `docs/playground.src.html`, rebuild the page with `python3 tools/build_web.py`.
 

@@ -12,7 +12,7 @@ The bytes produced by valid files do not change. What changes is which errors ar
 - **Suggestions.** A mistyped name proposes the right one: `unknown chord 'Cmaj'. Did you mean 'C'?`, and the same for tracks, patterns, swings, voicings, sections, drum names and commands. In the JSON form the field is `did_you_mean`.
 - A track line without `:` after the name has a message that says so.
 - Conformance suite: 7 new `X_mixed_*` cases; `X_syntax_before_semantics` became `X_syntax_and_semantics`; the expected list of `E007_tuplets` changes.
-- Playground: links to the repository and to the specification, shareable link of the piece, "copy the errors", a button for the light or dark theme, preview for social networks.
+- Playground: a Compile button (or Ctrl/⌘+Enter) instead of compiling while typing, links to the repository and to the specification, shareable link of the piece, "copy the errors", a button for the light or dark theme, preview for social networks.
 - Documentation in English and in Italian for the changelog, the conformance suite, the experiment and the assignment for the AIs. The report of the experiment is in English.
 - Tests on Linux, Windows and macOS; `.gitattributes` to keep the bytes of the suite files on every system.
 
