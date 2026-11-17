@@ -2,7 +2,25 @@
 
 *English · [Italiano](CHANGELOG.it.md)*
 
-The versions of the language are cumulative: a file that is valid in one version produces the same bytes if it declares a later one. The compiler accepts `loma 0.1`, `0.2`, `0.3` and `1.0`.
+The versions of the language are cumulative: a file that is valid in one version produces the same bytes if it declares a later one. The compiler accepts `loma 0.1`, `0.2`, `0.3`, `1.0` and `1.1`.
+
+## 1.1 (compiler 1.2.0)
+
+Language:
+
+- **Meter changes.** Bar option `meter=N/D`: the meter changes from that bar to the end of its section. Every section starts in the meter of the header, so the length of a bar depends only on the text of its section.
+- **Key changes.** Bar option `key=K`, with the same scope. It writes a Key Signature and does not change the notes.
+- **Several voices on one track.** A track may have several lines in a bar: each line is an independent voice that fills the bar on its own. Ties stay inside a voice; duplicates and overlaps are checked among all the voices.
+- `at TICK meter=N/D` and `at TICK key=K`, used by `loma decompile` to keep the signatures of a MIDI file.
+- New event types `meter` and `key` in the canonical JSON, sorted before `tempo` in the same tick.
+- Files that declare `loma 1.0` or earlier give the same bytes as before.
+
+Tools:
+
+- Conformance suite: 7 new valid cases (`5xx`) and 10 new error cases.
+- `loma decompile` keeps time and key signature changes (it declares `loma 1.1` only when the file has them).
+- The assignment for the AIs teaches `loma 1.1` and is more explicit about the mistakes seen in the first pieces written by other models (bars with two chords, `|`, pattern length).
+- New example `examples/carillon.loma`; first pieces by other models in `experiment/submissions/`.
 
 ## Compiler 1.1.0 (language 1.0)
 

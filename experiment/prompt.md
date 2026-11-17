@@ -11,7 +11,7 @@ You must write music in the LOMA 1.0 language. A compiler will turn your file in
 ## Quick reference
 
 ```loma
-loma 1.0
+loma 1.1
 title "Title"
 tempo 96
 meter 4/4
@@ -42,25 +42,34 @@ section ending
   bar Am tempo=96>70
     Mel{v=64}: pedal+ [A4 C5 E5]/1{a=leg} pedal-
     Pno{v=50}: use arpB
+    Pno{v=40}: A1/1
     Kit{v=50}: crash/1
 end
 
+section waltz
+  bar Dm meter=3/4 key=Dm
+    Mel{v=72}: D5/2 F5/4
+    Pno{v=50}: D3/4 [F3 A3]/4 [F3 A3]/4
+    Kit{v=50}: kick/4 hat/4 hat/4
+end
+
 play a x2
+play waltz x2
 play ending
 ```
 
 Rules:
 
-1. **Header.** First line `loma 1.0`. Then `tempo` (BPM), `meter`, `key`, and one `track` per instrument: `track NAME ch=N program=P` (channel 1–16 except 10, one per track; `program` is the General MIDI instrument 0–127) or `track NAME drums`.
+1. **Header.** First line `loma 1.1`. Then `tempo` (BPM), `meter`, `key`, and one `track` per instrument: `track NAME ch=N program=P` (channel 1–16 except 10, one per track; `program` is the General MIDI instrument 0–127) or `track NAME drums`.
 2. **Durations.** `/1` = 1920 ticks, `/2` = 960, `/4` = 480, `/8` = 240, `/16` = 120. Dotted: `/4.` = 720, `/8.` = 360. Triplet: `/8t` = 160, `/4t` = 320. Quintuplet: `/8q` = 192. Exact ticks: `/#100`.
 3. **Notes.** `C4/4` (C4 = middle C), rest `r/4`, chord `[C4 E4 G4]/2`, tie `C4/2~ C4/4` (same pitch, the second note without attributes). Drums: `kick snare hat ohat crash ride tom1 tom2`.
-4. **Every line must fill the bar exactly**: in 4/4 the sum is 1920 ticks, in 3/4 it is 1440. Add up the durations before answering.
-5. **Attributes** in braces after the note: `v=` velocity 1–127, `o=` early or late offset in ticks, `a=leg|norm|stac`, `d=` sounding duration in ticks. After the track name they apply to the whole line: `Mel{v=80}: ...`. On the line you can also write a ramp `v=60>90` and `swing=NAME`.
-6. **Chords of the bar.** `bar Am`, `bar F G` (two chords: half a bar each). Qualities: major, `m`, `7`, `maj7`, `m7`, `dim`, `aug`, `sus2`, `sus4`, `6`, `9`, `maj9`, `m9`, `add9`, `m7b5`, `dim7`, `13`. Bass: `C/E`.
-7. **Patterns.** The numbers are the notes of the chord: `1` the first, `3` the second, `5` the third, `7` the fourth (only on four-note chords), `8 10 12` the same an octave up, `0` the bass. `(1 5)` plays several tones together, `r` is a rest. `use NAME` takes the whole line or the whole segment and repeats until it fills **each chord**: the length of the pattern must divide the duration of the chord exactly. Patterns are not used on drums.
-8. **Segments.** In a bar with several chords you can separate the parts with `|`, one per chord; each part fills its own portion.
+4. **Every line must fill the bar exactly**: in 4/4 the sum is 1920 ticks, in 3/4 it is 1440. Add up the durations before answering. Two lines of the same track in a bar are two independent voices (melody and bass of a piano, for example): each one fills the bar on its own.
+5. **Attributes** in braces after the note: `v=` velocity 1–127 (never 0), `o=` early or late offset in ticks, `a=leg|norm|stac`, `d=` sounding duration in ticks. After the track name they apply to the whole line: `Mel{v=80}: ...`. On the line you can also write a ramp `v=60>90` and `swing=NAME`.
+6. **Chords of the bar.** `bar Am`, `bar F G` (two chords: half a bar each, 960 ticks in 4/4). Qualities: major, `m`, `7`, `maj7`, `m7`, `dim`, `aug`, `sus2`, `sus4`, `6`, `9`, `maj9`, `m9`, `add9`, `m7b5`, `dim7`, `13`. Bass: `C/E`.
+7. **Patterns.** The numbers are the notes of the chord: `1` the first, `3` the second, `5` the third, `7` the fourth (only on four-note chords), `8 10 12` the same an octave up, `0` the bass. `(1 5)` plays several tones together, `r` is a rest. `use NAME` takes the whole line or the whole segment and repeats until it fills **each chord**: the length of the pattern must divide the duration of the chord exactly (a pattern of 1920 ticks does not fit a chord of 960: in `bar F G` use a shorter one). Patterns are not used on drums.
+8. **Segments.** In a bar with several chords you can separate the parts with `|`: exactly as many parts as chords, and each part fills only its own portion (960 ticks each in `bar F G`). Never use `|` in a bar with one chord.
 9. **Controls**, without duration: `pedal+` `pedal-`, `cc7=100`, `bend=0`, ramps `cc11=40>100/1`.
-10. **Structure.** `section NAME ... end`, inside a section `repeat N ... end`, then `play NAME`, `play NAME x2`, `play NAME transpose=+2`. Tempo change: `bar Am tempo=80`, rallentando `bar Am tempo=96>70`.
+10. **Structure.** `section NAME ... end`, inside a section `repeat N ... end`, then `play NAME`, `play NAME x2`, `play NAME transpose=+2`. Tempo change: `bar Am tempo=80`, rallentando `bar Am tempo=96>70`. Meter or key change: `bar Dm meter=3/4 key=Dm`, valid from that bar to the end of its section; every section starts again in the meter and key of the header.
 11. A comment starts with `#` after a space. Names are letters, digits and `_`.
 12. No randomness: if you want a variation, write it. Write the expression: different velocities for melody and accompaniment, some `o=`, `a=leg` or `a=stac` where needed.
 

@@ -74,11 +74,11 @@ E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 
 | `loma/` | Compilatore di riferimento in Python: parser, espansione, eventi, scrittura MIDI, decompilatore, riga di comando |
 | `js/` | Seconda implementazione in JavaScript (Node.js e browser), usata per verificare la conformità |
 | `docs/` | La pagina web del playground: `index.html` è autosufficiente e si può servire con GitHub Pages |
-| `conformance/` | Suite di conformità: 95 file validi con i byte attesi, 116 file con gli errori attesi, e il programma che li confronta |
+| `conformance/` | Suite di conformità: 102 file validi con i byte attesi, 126 file con gli errori attesi, e il programma che li confronta |
 | `spec/` | Grammatica EBNF |
 | `tests/` | Test automatici |
 | `tools/` | Rigenerazione della suite, confronto su file casuali fra le due implementazioni, costruzione della pagina web |
-| `examples/` | Brani di esempio, compreso `showcase.loma` che usa ogni costrutto |
+| `examples/` | Brani di esempio, compresi `showcase.loma`, che usa ogni costrutto della 1.0, e `carillon.loma` per la 1.1 |
 | `experiment/` | Materiale per l'esperimento con più AI: consegna, raccolta dei file, misure |
 | `editors/vscode/` | Evidenziazione della sintassi per Visual Studio Code |
 
@@ -93,7 +93,7 @@ python3 tools/fuzz_compare.py --count 5000                  # file casuali: Pyth
 
 Che cosa è verificato:
 
-- **Stessi byte da due implementazioni.** Il compilatore Python e quello JavaScript producono gli stessi eventi e gli stessi byte su tutti i 211 casi della suite e su migliaia di file generati a caso, validi e non.
+- **Stessi byte da due implementazioni.** Il compilatore Python e quello JavaScript producono gli stessi eventi e gli stessi byte su tutti i 228 casi della suite e su migliaia di file generati a caso, validi e non.
 - **Byte calcolati a mano.** Il file minimo di [SPEC.it.md §16.1](SPEC.it.md#161-esempio-con-i-byte-attesi) è stato calcolato a mano dalla specifica e coincide con l'output.
 - **Andata e ritorno.** Ogni MIDI della suite, decompilato e ricompilato, torna identico.
 
@@ -101,7 +101,7 @@ Che cosa **non** è verificato:
 
 - Le due implementazioni hanno lo stesso autore. Un errore di interpretazione della specifica può essere presente in entrambe: la prova decisiva resta un compilatore scritto da un'altra persona partendo solo da `SPEC.it.md` o `SPEC.md`.
 - Nessuno ha ancora ascoltato i brani di esempio con criterio: LOMA garantisce che il MIDI sia sempre lo stesso, non che suoni bene.
-- L'esperimento con più AI (`experiment/`) ha per ora solo i tre brani scritti dall'autore della specifica.
+- L'esperimento con più AI (`experiment/`) ha i tre brani scritti dall'autore della specifica e i primi brani liberi di ChatGPT, Gemini e Grok, nessuno valido al primo tentativo. Mancano ancora i tre brani della consegna scritti da altri modelli.
 
 ## Scrivere LOMA con un'AI
 
@@ -113,12 +113,13 @@ Che cosa **non** è verificato:
 |---|---|
 | 0.1 — nucleo deterministico | Fatto |
 | 0.1 — grammatica EBNF e seconda implementazione | Fatto (stesso autore) |
-| 0.1 — esperimento con le AI | Strumenti pronti; mancano i brani scritti da altri modelli |
+| 0.1 — esperimento con le AI | Raccolti i primi brani liberi di altri tre modelli; mancano i brani della consegna |
 | 0.2 — espressività e varietà | Fatto |
 | 0.3 — armonia avanzata | Fatto |
 | 1.0 — specifica stabile, documentazione, suite pubblica | Fatto |
 | Da MIDI a LOMA, testi cantati, evidenziazione della sintassi | Fatto |
 | Compilatore 1.1 — errori in un solo giro, suggerimenti, link nel playground | Fatto |
+| Linguaggio 1.1 — cambi di metro e di tonalità, più voci su un track | Fatto |
 
 ## Contribuire
 

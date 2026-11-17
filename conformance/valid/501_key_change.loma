@@ -1,0 +1,28 @@
+loma 1.1
+tempo 100
+meter 4/4
+key C
+track P ch=1 program=0
+
+section a
+  bar C
+    P: C4/1
+  bar D key=D
+    P: D4/1
+  bar G key=Em
+    P: G4/1
+  bar Em
+    P: E4/1
+end
+
+section b                  # back to the key of the header
+  bar C key=C
+    P: C4/1
+  bar Bb key=Bb meter=2/4
+    P: Bb3/2
+end
+
+play a
+play b
+play b
+play a transpose=+2

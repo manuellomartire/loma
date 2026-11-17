@@ -74,11 +74,11 @@ E003 line 14 bar 2 (Ab) track RH: bar length mismatch. Expected 1920 ticks, got 
 | `loma/` | Reference compiler in Python: parser, expansion, events, MIDI writer, decompiler, command line |
 | `js/` | Second implementation in JavaScript (Node.js and browser), used to check conformance |
 | `docs/` | The playground web page: `index.html` is self-contained and can be served with GitHub Pages |
-| `conformance/` | Conformance suite: 95 valid files with the expected bytes, 116 files with the expected errors, and the program that compares them |
+| `conformance/` | Conformance suite: 102 valid files with the expected bytes, 126 files with the expected errors, and the program that compares them |
 | `spec/` | EBNF grammar |
 | `tests/` | Automated tests |
 | `tools/` | Regeneration of the suite, comparison of the two implementations on random files, build of the web page |
-| `examples/` | Example pieces, including `showcase.loma`, which uses every construct |
+| `examples/` | Example pieces, including `showcase.loma`, which uses every construct of 1.0, and `carillon.loma` for 1.1 |
 | `experiment/` | Material for the experiment with several AIs: assignment, collection of the files, measurements |
 | `editors/vscode/` | Syntax highlighting for Visual Studio Code |
 
@@ -93,7 +93,7 @@ python3 tools/fuzz_compare.py --count 5000                  # random files: Pyth
 
 What is verified:
 
-- **Same bytes from two implementations.** The Python and the JavaScript compilers produce the same events and the same bytes on all 211 cases of the suite and on thousands of randomly generated files, valid and invalid.
+- **Same bytes from two implementations.** The Python and the JavaScript compilers produce the same events and the same bytes on all 228 cases of the suite and on thousands of randomly generated files, valid and invalid.
 - **Bytes worked out by hand.** The minimal file in [SPEC.md §16.1](SPEC.md#161-example-with-the-expected-bytes) was computed by hand from the specification and matches the output.
 - **Round trip.** Every MIDI file of the suite, decompiled and compiled again, comes back identical.
 
@@ -101,7 +101,7 @@ What is **not** verified:
 
 - Both implementations have the same author. A misreading of the specification may be present in both: the decisive proof is still a compiler written by someone else from `SPEC.md` alone.
 - Nobody has yet listened critically to the example pieces: LOMA guarantees that the MIDI is always the same, not that it sounds good.
-- The experiment with several AIs (`experiment/`) so far contains only the three pieces written by the author of the specification.
+- The experiment with several AIs (`experiment/`) has the three pieces written by the author of the specification and the first free pieces by ChatGPT, Gemini and Grok, none of them valid at the first attempt. The three assigned pieces by other models are still missing.
 
 ## Writing LOMA with an AI
 
@@ -113,12 +113,13 @@ What is **not** verified:
 |---|---|
 | 0.1 — deterministic core | Done |
 | 0.1 — EBNF grammar and second implementation | Done (same author) |
-| 0.1 — experiment with AIs | Tools ready; pieces written by other models are missing |
+| 0.1 — experiment with AIs | First free pieces by three other models collected; the assigned pieces are missing |
 | 0.2 — expression and variety | Done |
 | 0.3 — advanced harmony | Done |
 | 1.0 — stable specification, documentation, public suite | Done |
 | MIDI to LOMA, lyrics, syntax highlighting | Done |
 | Compiler 1.1 — errors in one round, suggestions, playground links | Done |
+| Language 1.1 — meter and key changes, several voices on one track | Done |
 
 ## Contributing
 

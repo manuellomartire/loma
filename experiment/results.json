@@ -2,13 +2,82 @@
   {
     "attempt_details": [
       {
+        "errors": [
+          {
+            "code": "E003",
+            "line": 80
+          }
+        ],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "final_valid": false,
+    "model": "chatgpt",
+    "piece": "free",
+    "valid_at_first_attempt": false
+  },
+  {
+    "attempt_details": [
+      {
+        "errors": [
+          {
+            "code": "E001",
+            "line": 19
+          },
+          {
+            "code": "E003",
+            "line": 32
+          },
+          {
+            "code": "E003",
+            "line": 37
+          }
+        ],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "final_valid": false,
+    "model": "gemini",
+    "piece": "free",
+    "valid_at_first_attempt": false
+  },
+  {
+    "attempt_details": [
+      {
+        "errors": [
+          {
+            "code": "E021",
+            "line": 48
+          },
+          {
+            "code": "E009",
+            "line": 54
+          },
+          {
+            "code": "E009",
+            "line": 77
+          }
+        ],
+        "file": "attempt1.loma"
+      }
+    ],
+    "attempts": 1,
+    "final_valid": false,
+    "model": "grok",
+    "piece": "free",
+    "valid_at_first_attempt": false
+  },
+  {
+    "attempt_details": [
+      {
         "errors": [],
         "file": "attempt1.loma"
       }
     ],
     "attempts": 1,
     "bars": 8,
-    "bars_by_length": 8,
     "deterministic": true,
     "dynamics": true,
     "events_json_bytes": 12151,
@@ -38,7 +107,6 @@
     ],
     "attempts": 1,
     "bars": 16,
-    "bars_by_length": 16,
     "deterministic": true,
     "dynamics": true,
     "events_json_bytes": 43287,
@@ -68,7 +136,6 @@
     ],
     "attempts": 1,
     "bars": 32,
-    "bars_by_length": 32,
     "deterministic": true,
     "dynamics": true,
     "events_json_bytes": 148719,

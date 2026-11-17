@@ -1,0 +1,26 @@
+loma 1.1
+tempo 80
+meter 4/4
+key Dm
+track P ch=1 program=0
+track Q ch=2 program=48
+pattern p base=3 dur=/8 : 1 5
+swing s grid=/8 : 0 15
+
+section a
+  bar Dm Gm A meter=3/4 tempo=80>120
+    P{swing=s}: D4/8 F4/8 | G4/4 | A4/8t A4/8t A4/8t
+    Q: use p
+  bar Dm len=/2
+    P: D4/2
+    Q{v=40>70}: use p
+  bar A7 Dm meter=5/4 key=D tempo=60
+    P: A4/2 r/8 | D5/2 r/8
+    Q: [A2 E3]/2 r/8 | [D2 A2]/2 r/8
+    Q{v=30}: r/1 r/4
+  bar D len=/#100 meter=1/64
+    P: D4/#100
+end
+
+play a
+play a transpose=-12

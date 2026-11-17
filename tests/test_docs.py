@@ -78,7 +78,7 @@ class Documentation(unittest.TestCase):
                 self.assertIn("**%s**" % version, text)
 
     def test_versions_agree(self):
-        self.assertEqual(SPEC_VERSION, "1.0")
+        self.assertEqual(SPEC_VERSION, "1.1")
         self.assertIn('version = "%s"' % __version__, read("pyproject.toml"))
         self.assertEqual(json.loads(read(os.path.join("js", "package.json")))["version"], __version__)
         self.assertEqual(json.loads(read(os.path.join("editors", "vscode", "package.json")))["version"], __version__)
@@ -121,7 +121,7 @@ class Examples(unittest.TestCase):
     def test_examples_compile_and_are_deterministic(self):
         paths = sorted(glob.glob(os.path.join(ROOT, "examples", "*.loma")))
         self.assertEqual([os.path.basename(p) for p in paths],
-                         ["brano1.loma", "brano2.loma", "brano3.loma", "example.loma", "showcase.loma"])
+                         ["brano1.loma", "brano2.loma", "brano3.loma", "carillon.loma", "example.loma", "showcase.loma"])
         for path in paths:
             with open(path, encoding="utf-8") as f:
                 text = f.read()
@@ -153,7 +153,7 @@ class Examples(unittest.TestCase):
             out = subprocess.run([node, script], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(out.returncode, 0, out.stderr)
         pairs = json.loads(out.stdout)
-        self.assertEqual(len(pairs), 5)
+        self.assertEqual(len(pairs), 6)
         for source, digest in pairs:
             self.assertEqual(sha256(compile_text(source)[1]), digest)
         self.assertEqual(subprocess.run([node, "--check", "-"], input=scripts[1], capture_output=True, text=True,

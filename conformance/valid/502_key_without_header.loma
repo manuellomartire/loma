@@ -1,0 +1,20 @@
+loma 1.1
+tempo 100
+meter 3/4
+track P ch=1 program=0
+
+section a                  # no key in the header: nothing is written until a bar sets one
+  bar C
+    P: C4/2.
+  bar F key=F
+    P: F4/2.
+end
+
+section b                  # no key of its own: the key signature stays the last one written
+  bar C
+    P: C4/2.
+end
+
+play a
+play b
+play a

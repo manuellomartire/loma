@@ -1,0 +1,42 @@
+loma 1.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track B ch=2 program=32
+pattern w base=3 dur=/4 : 1 3 5
+
+section a
+  bar C
+    P: C4/1
+    B: C2/1
+  bar F meter=3/4          # from here to the end of the section
+    P: F4/2.
+    B: use w
+  bar G
+    P: G4/4 A4/4 B4/4
+    B: use w
+  repeat 2
+    bar C meter=6/8
+      P: C5/4. G4/4.
+      B: C2/2.
+    bar G
+      P: D5/8 D5/8 D5/8 B4/4.
+      B: G2/2.
+  end
+  bar C                    # still 6/8
+    P: C5/2.
+    B: C2/2.
+end
+
+section b                  # back to the meter of the header
+  bar Am
+    P: A4/1
+    B: A2/1
+  bar Am meter=4/4         # the same meter: nothing is written
+    P: A4/1
+    B: A2/1
+end
+
+play a
+play b
+play a x2

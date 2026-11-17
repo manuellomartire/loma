@@ -20,7 +20,7 @@ const MAX_DIGITS = 9;
 const DEFAULT_VEL = 80;
 const VALID_DENOMINATORS = [1, 2, 4, 8, 16, 32, 64];
 const GATE_PCT = new Map([["leg", 100], ["norm", 90], ["stac", 50]]);
-const VERSIONS = new Map([["0.1", 1], ["0.2", 2], ["0.3", 3], ["1.0", 10]]);
+const VERSIONS = new Map([["0.1", 1], ["0.2", 2], ["0.3", 3], ["1.0", 10], ["1.1", 11]]);
 const RESERVED = new Set(["loma", "title", "tempo", "meter", "key", "track", "pattern", "swing",
   "voicing", "section", "play", "at", "bar", "end", "repeat", "use", "from", "r", "pedal", "bend", "drums"]);
 const PITCH_CLASS = new Map([["C", 0], ["D", 2], ["E", 4], ["F", 5], ["G", 7], ["A", 9], ["B", 11]]);
@@ -41,7 +41,7 @@ const KEY_MINOR = new Map([["A", 0], ["E", 1], ["B", 2], ["F#", 3], ["C#", 4], [
   ["D", -1], ["G", -2], ["C", -3], ["F", -4], ["Bb", -5], ["Eb", -6], ["Ab", -7]]);
 const TOP_KEYWORDS = new Set(["title", "tempo", "meter", "key", "track", "pattern", "swing", "voicing",
   "section", "play", "at"]);
-const ORDER = new Map([["tempo", 0], ["note_off", 1], ["cc", 2], ["bend", 2], ["lyric", 2], ["note_on", 3]]);
+const ORDER = new Map([["meter", -2], ["key", -1], ["tempo", 0], ["note_off", 1], ["cc", 2], ["bend", 2], ["lyric", 2], ["note_on", 3]]);
 
 // ---------------------------------------------------------------------------- errors
 
@@ -400,6 +400,9 @@ class Parser {
     this.barCount = 0;
     this.badTracks = new Set();
     this.meterFailed = false;
+    this.curMeter = null;
+    this.curKey = null;
+    this.meterLost = false;
   }
 
   need(ver, feature, line) {
@@ -806,28 +809,36 @@ class Parser {
     this.song.tempo = bpm;
   }
 
-  cmdMeter(words, line) {
-    this.once("meter", line);
-    const m = words.length === 2 ? /^([0-9]+)\/([0-9]+)$/.exec(words[1]) : null;
-    if (!m) throw new LomaError("E001", "usage: meter N/D, e.g. meter 4/4", line);
+  meterValue(text, line, usage) {
+    const m = /^([0-9]+)\/([0-9]+)$/.exec(text);
+    if (!m) throw new LomaError("E001", usage, line);
     const num = toInt(m[1], line), den = toInt(m[2], line);
     if (num < 1 || num > 64 || !VALID_DENOMINATORS.includes(den)) {
       throw new LomaError("E018", "meter " + num + "/" + den + " is outside the limits (numerator 1-64, denominator 1, 2, 4, 8, 16, 32, 64)", line);
     }
-    this.song.meter = [num, den];
+    return [num, den];
+  }
+
+  keyValue(text, line) {
+    const m = /^([A-G][#b]?)(m?)$/.exec(text);
+    if (m) {
+      const table = m[2] ? KEY_MINOR : KEY_MAJOR;
+      if (table.has(m[1])) return [table.get(m[1]), m[2] ? 1 : 0];
+    }
+    throw new LomaError("E013", "invalid key '" + text + "' (examples: C, Cm, F#m, Bb)", line);
+  }
+
+  cmdMeter(words, line) {
+    this.once("meter", line);
+    this.song.meter = this.meterValue(words.length === 2 ? words[1] : "", line, "usage: meter N/D, e.g. meter 4/4");
   }
 
   cmdKey(words, line) {
     this.once("key", line);
-    const m = words.length === 2 ? /^([A-G][#b]?)(m?)$/.exec(words[1]) : null;
-    if (m) {
-      const table = m[2] ? KEY_MINOR : KEY_MAJOR;
-      if (table.has(m[1])) {
-        this.song.key = [table.get(m[1]), m[2] ? 1 : 0];
-        return;
-      }
+    if (words.length !== 2) {
+      throw new LomaError("E013", "invalid key '" + (words.length > 1 ? words[1] : "") + "' (examples: C, Cm, F#m, Bb)", line);
     }
-    throw new LomaError("E013", "invalid key '" + (words.length > 1 ? words[1] : "") + "' (examples: C, Cm, F#m, Bb)", line);
+    this.song.key = this.keyValue(words[1], line);
   }
 
   cmdTrack(words, line) {
@@ -886,6 +897,9 @@ class Parser {
     this.tl = null;
     this.skipBar = false;
     this.barCount = 0;
+    this.curMeter = null;               // every section starts in the meter and key of the header
+    this.curKey = null;
+    this.meterLost = false;
     if (words.length !== 2) throw new LomaError("E001", "usage: section NAME", line);
     const name = this.newName(words[1], "section", (n) => this.song.sections.has(n), line);
     this.song.sections.set(name, this.section);
@@ -910,7 +924,7 @@ class Parser {
   }
 
   cmdAt(code, line) {
-    const usage = "usage: at TICK TRACK PITCH d=TICKS [v=VEL] | at TICK TRACK ccN=V | at TICK TRACK bend=V | at TICK TRACK \"text\" | at TICK tempo=BPM";
+    const usage = "usage: at TICK TRACK PITCH d=TICKS [v=VEL] | at TICK TRACK ccN=V | at TICK TRACK bend=V | at TICK TRACK \"text\" | at TICK tempo=BPM | at TICK meter=N/D | at TICK key=K";
     const m = /^at[ \t]+([0-9]+)[ \t]+([^]+)$/.exec(code);
     if (!m) throw new LomaError("E001", usage, line);
     const tick = toInt(m[1], line);
@@ -923,6 +937,16 @@ class Parser {
       const bpm = toInt(v, line);
       if (bpm < 4 || bpm > 400) throw new LomaError("E015", "tempo " + bpm + " is outside the range 4-400 BPM", line);
       this.song.ats.push({ kind: "tempo", tick: tick, line: line, value: bpm });
+      return;
+    }
+    if (rest.startsWith("meter=")) {
+      this.need("1.1", "'at TICK meter=N/D'", line);
+      this.song.ats.push({ kind: "meter", tick: tick, line: line, value: this.meterValue(rest.slice(6), line, usage) });
+      return;
+    }
+    if (rest.startsWith("key=")) {
+      this.need("1.1", "'at TICK key=K'", line);
+      this.song.ats.push({ kind: "key", tick: tick, line: line, value: this.keyValue(rest.slice(4), line) });
       return;
     }
     const tm = /^([^ \t]+)(?:[ \t]+([^]*))?$/.exec(rest);
@@ -987,7 +1011,25 @@ class Parser {
     this.skipBar = true;
     this.barCount++;
     const chords = [];
-    let lenTicks = null, tempo = null;
+    let options;
+    try {
+      options = this.barOptions(words, line, chords);
+    } catch (e) {
+      // the bars that follow have an unknown length
+      if (e instanceof LomaError && words.slice(1).some((w) => w.startsWith("meter="))) this.meterLost = true;
+      throw e;
+    }
+    if (chords.length === 0) throw new LomaError("E001", "'bar' needs at least one chord, e.g. 'bar Cm'", line);
+    if (options.meter !== null) this.curMeter = options.meter;
+    if (options.key !== null) this.curKey = options.key;
+    this.bar = { isBar: true, chords: chords, lenTicks: options.lenTicks, tempo: options.tempo, trackLines: [], line: line,
+      number: this.barCount, meter: this.curMeter, key: this.curKey, uncertain: this.meterLost };
+    this.stack[this.stack.length - 1].push(this.bar);
+    this.skipBar = false;
+  }
+
+  barOptions(words, line, chords) {
+    let lenTicks = null, tempo = null, meter = null, key = null;
     for (const w of words.slice(1)) {
       if (w.includes("=")) {
         const [k, , v] = partition(w, "=");
@@ -1002,17 +1044,20 @@ class Parser {
             if (x !== null && (x < 4 || x > 400)) throw new LomaError("E015", "tempo " + x + " is outside the range 4-400 BPM", line);
           }
           tempo = [lo, hi];
+        } else if (k === "meter") {
+          this.need("1.1", "bar option 'meter='", line);
+          meter = this.meterValue(v, line, "meter option must be meter=N/D, e.g. meter=3/4");
+        } else if (k === "key") {
+          this.need("1.1", "bar option 'key='", line);
+          key = this.keyValue(v, line);
         } else {
-          throw new LomaError("E001", "unknown bar option '" + k + "' (allowed: len=/D tempo=N tempo=N>M)", line);
+          throw new LomaError("E001", "unknown bar option '" + k + "' (allowed: len=/D tempo=N tempo=N>M meter=N/D key=K)", line);
         }
       } else {
         chords.push(this.chord(w, line));
       }
     }
-    if (chords.length === 0) throw new LomaError("E001", "'bar' needs at least one chord, e.g. 'bar Cm'", line);
-    this.bar = { isBar: true, chords: chords, lenTicks: lenTicks, tempo: tempo, trackLines: [], line: line, number: this.barCount };
-    this.stack[this.stack.length - 1].push(this.bar);
-    this.skipBar = false;
+    return { lenTicks: lenTicks, tempo: tempo, meter: meter, key: key };
   }
 
   cmdRepeat(words, line) {
@@ -1078,11 +1123,12 @@ class Parser {
       throw new LomaError("E001", "track line before any 'bar'", line);
     }
     const track = this.trackByName(m[1], line);
-    if (this.bar.trackLines.some((tl) => tl.track === track)) {
-      throw new LomaError("E001", "track " + m[1] + " already has a line in this bar", line);
+    const voice = this.bar.trackLines.filter((tl) => tl.track === track).length;
+    if (voice > 0 && this.version < VERSIONS.get("1.1")) {
+      throw new LomaError("E001", "track " + m[1] + " already has a line in this bar (several voices on one track need 'loma 1.1')", line);
     }
     const attrs = m[2] ? this.parseAttrs(m[2].slice(1, -1), line, true) : {};
-    const tl = { track: track, attrs: attrs, parts: [{ use: null, items: [] }], line: line, failed: false };
+    const tl = { track: track, attrs: attrs, parts: [{ use: null, items: [] }], line: line, failed: false, voice: voice };
     this.bar.trackLines.push(tl);
     this.tl = tl;
     this.addContent(tl, m[3], line);
@@ -1452,7 +1498,7 @@ class BarExpander {
         if (e instanceof Quiet) continue;
         throw e;
       }
-      result.push([tl.track.index, out]);
+      result.push([tl.track.index, tl.voice, out]);
     }
     return result;
   }
@@ -1495,6 +1541,37 @@ function buildTempoMap(song, timeline) {
   }
   for (const at of song.ats) if (at.kind === "tempo") tmap.set(at.tick, at.value);
   return tmap;
+}
+
+// Ticks of a bar: its 'len=', or else the meter in effect (its own or the one of the header).
+function barLength(song, bar) {
+  if (bar.lenTicks) return bar.lenTicks;
+  const [num, den] = bar.meter || song.meter;
+  return num * (WHOLE / den);
+}
+
+// [Map tick -> [num, den], Map tick -> [sf, mi]]: one time signature and one key signature per tick,
+// the last one wins. A bar writes a signature when the one in effect differs from that of the bar
+// played before it.
+function buildSignatureMaps(song, timeline) {
+  const meters = new Map([[0, song.meter]]), keys = new Map([[0, song.key]]);
+  let meter = song.meter, key = song.key;
+  for (const [, bar, start] of timeline) {
+    const m = bar.meter || song.meter, k = bar.key || song.key;
+    if (m[0] !== meter[0] || m[1] !== meter[1]) {
+      meters.set(start, m);
+      meter = m;
+    }
+    if (k !== null && (key === null || k[0] !== key[0] || k[1] !== key[1])) {
+      keys.set(start, k);
+      key = k;
+    }
+  }
+  for (const at of song.ats) {
+    if (at.kind === "meter") meters.set(at.tick, at.value);
+    else if (at.kind === "key") keys.set(at.tick, at.value);
+  }
+  return [meters, keys];
 }
 
 function samePitches(a, b) {
@@ -1550,7 +1627,6 @@ function compareKeys(a, b) {
 function checkBars(song) {
   const errors = [];
   const expander = new BarExpander(song, new Budget());
-  const meterLen = song.meter[0] * (WHOLE / song.meter[1]);
   const todo = [];
   const played = new Set();
   song.plays.forEach((play, pi) => {
@@ -1572,8 +1648,9 @@ function checkBars(song) {
       const flat = [];
       allBars(sec.body, flat);
       for (const bar of flat) {
+        if (bar.uncertain) continue;        // its meter was set by a 'bar' line that is wrong
         try {
-          expander.expand(sec, bar, 0, pi, transpose, bar.lenTicks || meterLen);
+          expander.expand(sec, bar, 0, pi, transpose, barLength(song, bar));
         } catch (e) {
           if (!(e instanceof LomaError)) throw e;
           errors.push(e);
@@ -1591,7 +1668,6 @@ function compileSong(song) {
   const errors = [];
   const budget = new Budget();
   const expander = new BarExpander(song, budget);
-  const meterLen = song.meter[0] * (WHOLE / song.meter[1]);
 
   const timeline = [];
   const played = new Set();
@@ -1610,7 +1686,7 @@ function compileSong(song) {
     flatten(sec.body, flat);
     for (let r = 0; r < play.times; r++) {
       for (const bar of flat) {
-        const length = bar.lenTicks || meterLen;
+        const length = barLength(song, bar);
         timeline.push([sec, bar, cursor, pi, play.transpose, length]);
         cursor += length;
         if (cursor > MAX_TICK) {
@@ -1621,11 +1697,13 @@ function compileSong(song) {
   });
   const totalLen = cursor;
 
-  const trackItems = song.tracks.map(() => []);
+  const trackItems = song.tracks.map(() => new Map());    // for each track: voice number -> items
   for (const [sec, bar, start, pi, tr, length] of timeline) {
     try {
-      for (const [ti, items] of expander.expand(sec, bar, start, pi, tr, length)) {
-        for (const it of items) trackItems[ti].push(it);
+      for (const [ti, voice, items] of expander.expand(sec, bar, start, pi, tr, length)) {
+        if (!trackItems[ti].has(voice)) trackItems[ti].set(voice, []);
+        const list = trackItems[ti].get(voice);
+        for (const it of items) list.push(it);
       }
     } catch (e) {
       if (!(e instanceof LomaError)) throw e;
@@ -1638,7 +1716,7 @@ function compileSong(song) {
     allBars(sec.body, flat);
     for (const bar of flat) {
       try {
-        expander.expand(sec, bar, 0, -1, 0, bar.lenTicks || meterLen);
+        expander.expand(sec, bar, 0, -1, 0, barLength(song, bar));
       } catch (e) {
         if (!(e instanceof LomaError)) throw e;
         errors.push(e);
@@ -1651,36 +1729,46 @@ function compileSong(song) {
   for (const tick of Array.from(tempoMap.keys()).sort((a, b) => a - b)) {
     events.push({ tick: tick, kind: "tempo", track: -1, ch: 0, pitch: 0, seq: 0, data: { bpm: tempoMap.get(tick) } });
   }
+  const [meterMap, keyMap] = buildSignatureMaps(song, timeline);
+  for (const tick of Array.from(meterMap.keys()).sort((a, b) => a - b)) {
+    if (tick > 0) events.push({ tick: tick, kind: "meter", track: -1, ch: 0, pitch: 0, seq: 0, data: { num: meterMap.get(tick)[0], den: meterMap.get(tick)[1] } });
+  }
+  for (const tick of Array.from(keyMap.keys()).sort((a, b) => a - b)) {
+    if (tick > 0) events.push({ tick: tick, kind: "key", track: -1, ch: 0, pitch: 0, seq: 0, data: { sf: keyMap.get(tick)[0], mi: keyMap.get(tick)[1] } });
+  }
 
   const resolved = [];
   const counters = song.tracks.map(() => 0);
   for (const track of song.tracks) {
-    const items = trackItems[track.index];
-    const [cont, total] = resolveTies(track, items, errors);
     let c = 0;
-    items.forEach((it, i) => {
-      if (it.kind === "ctl") {
-        for (const [tick, kind, data] of it.controls) {
-          if (tick > MAX_TICK) {
-            errors.push(new LomaError("E018", "event at tick " + tick + " exceeds the maximum " + MAX_TICK, it.line, it.ctx));
-            break;
+    // voice by voice: ties stay inside a voice
+    for (const voice of Array.from(trackItems[track.index].keys()).sort((a, b) => a - b)) {
+      const items = trackItems[track.index].get(voice);
+      const [cont, total] = resolveTies(track, items, errors);
+      items.forEach((it, i) => {
+        if (it.kind === "ctl") {
+          for (const [tick, kind, data] of it.controls) {
+            if (tick > MAX_TICK) {
+              errors.push(new LomaError("E018", "event at tick " + tick + " exceeds the maximum " + MAX_TICK, it.line, it.ctx));
+              break;
+            }
+            events.push({ tick: tick, kind: kind, track: track.index, ch: track.ch, pitch: 0, seq: c, data: data });
+            c++;
           }
-          events.push({ tick: tick, kind: kind, track: track.index, ch: track.ch, pitch: 0, seq: c, data: data });
-          c++;
+        } else if (cont[i] === null) {
+          for (const [pitch, m] of it.notes) {
+            const sounding = "d" in m ? m.d : Math.max(1, floorDiv(total[i] * GATE_PCT.get(m.a), 100));
+            const start = Math.max(0, it.pos + m.o);
+            resolved.push({ track: track, pitch: pitch, vel: m.v, start: start, end: start + sounding, on: c, off: c + 1, line: it.line, ctx: it.ctx });
+            c += 2;
+          }
         }
-      } else if (cont[i] === null) {
-        for (const [pitch, m] of it.notes) {
-          const sounding = "d" in m ? m.d : Math.max(1, floorDiv(total[i] * GATE_PCT.get(m.a), 100));
-          const start = Math.max(0, it.pos + m.o);
-          resolved.push({ track: track, pitch: pitch, vel: m.v, start: start, end: start + sounding, on: c, off: c + 1, line: it.line, ctx: it.ctx });
-          c += 2;
-        }
-      }
-    });
+      });
+    }
     counters[track.index] = c;
   }
   for (const at of song.ats) {
-    if (at.kind === "tempo") continue;
+    if (at.kind === "tempo" || at.kind === "meter" || at.kind === "key") continue;
     const c = counters[at.track.index];
     const ctx = { track: at.track.name };
     if (at.kind === "note") {
@@ -1726,13 +1814,15 @@ function compileSong(song) {
   const sorted = keyed.map((x) => x[1]);
   let endTick = totalLen;
   for (const e of sorted) if (e.tick > endTick) endTick = e.tick;
-  return { song: song, events: sorted, endTick: endTick, bars: timeline.map((x) => x[2]) };
+  return { song: song, events: sorted, endTick: endTick, bars: timeline.map((x) => x[2]), meter: meterMap.get(0), key: keyMap.get(0) };
 }
 
 // ---------------------------------------------------------------------------- output
 
 function eventObject(e, trackNames) {
   if (e.kind === "tempo") return { bpm: e.data.bpm, tick: e.tick, type: e.kind };
+  if (e.kind === "meter") return { den: e.data.den, num: e.data.num, tick: e.tick, type: e.kind };
+  if (e.kind === "key") return { mi: e.data.mi, sf: e.data.sf, tick: e.tick, type: e.kind };
   const track = trackNames[e.track];
   if (e.kind === "lyric") return { text: e.data.text, tick: e.tick, track: track, type: e.kind };
   if (e.kind === "note_on") return { ch: e.ch, pitch: e.pitch, tick: e.tick, track: track, type: e.kind, vel: e.data.vel };
@@ -1787,12 +1877,18 @@ function writeMidi(compiled) {
   const end = compiled.endTick;
   const conductor = [];
   if (song.title !== null) conductor.push([0, meta(0x03, utf8(song.title))]);
-  conductor.push([0, meta(0x58, [song.meter[0], VALID_DENOMINATORS.indexOf(song.meter[1]), 24, 8])]);
-  if (song.key !== null) conductor.push([0, meta(0x59, [song.key[0] & 0xFF, song.key[1]])]);
+  const timeSignature = (num, den) => meta(0x58, [num, VALID_DENOMINATORS.indexOf(den), 24, 8]);
+  const keySignature = (sf, mi) => meta(0x59, [sf & 0xFF, mi]);
+  conductor.push([0, timeSignature(compiled.meter[0], compiled.meter[1])]);
+  if (compiled.key !== null) conductor.push([0, keySignature(compiled.key[0], compiled.key[1])]);
   for (const e of compiled.events) {
     if (e.kind === "tempo") {
       const us = floorDiv(60000000, e.data.bpm);
       conductor.push([e.tick, meta(0x51, [(us >> 16) & 0xFF, (us >> 8) & 0xFF, us & 0xFF])]);
+    } else if (e.kind === "meter") {
+      conductor.push([e.tick, timeSignature(e.data.num, e.data.den)]);
+    } else if (e.kind === "key") {
+      conductor.push([e.tick, keySignature(e.data.sf, e.data.mi)]);
     }
   }
   const perTrack = song.tracks.map(() => []);
@@ -1944,7 +2040,8 @@ function decompile(data) {
     return t;
   };
 
-  let title = null, meter = null, key = null, end = 0;
+  let title = null, end = 0;
+  const meters = new Map(), keys = new Map();     // tick -> last signature written at that tick
   const tempos = new Map(), channels = new Map(), names = new Map(), lyrics = new Map(), openNotes = new Map();
   const silent = [];
 
@@ -1960,11 +2057,9 @@ function decompile(data) {
           if (ti === 0 && fmt === 1) title = metaText(b);
           else names.set(ti, metaText(b));
         } else if (a === 0x58 && b.length >= 2) {
-          const m = [b[0], Math.pow(2, b[1])];
-          if (meter === null) meter = m;
-          else if (meter[0] !== m[0] || meter[1] !== m[1]) dropped.add("time signature changes");
+          meters.set(t, [b[0], Math.pow(2, b[1])]);
         } else if (a === 0x59 && b.length >= 2) {
-          if (key === null) key = [b[0] > 127 ? b[0] - 256 : b[0], b[1]];
+          keys.set(t, [b[0] > 127 ? b[0] - 256 : b[0], b[1]]);
         } else if (a === 0x51 && b.length === 3) {
           tempos.set(t, be(b, 0, 3));
         } else if (a === 0x05) {
@@ -2024,21 +2119,38 @@ function decompile(data) {
     const wanted = owners.get(info.track).length === 1 && names.has(info.track) ? names.get(info.track) : null;
     decl.push([[info.track, info.ch], wanted, info.ch]);
   }
-  let emptyDrums = false;
+  let emptyDrums = null;              // MIDI track taken as a drums track without notes
   for (const ti of silent) {
-    if (names.has(ti) && !channels.has(10) && !emptyDrums) {
+    if (names.has(ti) && !channels.has(10) && emptyDrums === null) {
       decl.push([[ti, 0], names.get(ti), null]);
-      emptyDrums = true;
+      emptyDrums = ti;
     } else if (names.has(ti)) {
       dropped.add("empty tracks");
     }
   }
   decl.sort((x, y) => (x[0][0] - y[0][0]) || (x[0][1] - y[0][1]));
   for (const ti of lyrics.keys()) {
-    if ((owners.get(ti) || []).length !== 1) dropped.add("lyrics in tracks that do not own exactly one channel");
+    if ((owners.get(ti) || []).length !== 1 && ti !== emptyDrums) dropped.add("lyrics in tracks that do not own exactly one channel");
   }
 
-  const out = ["loma 1.0"];
+  const validMeter = (m) => m[0] >= 1 && m[0] <= 64 && VALID_DENOMINATORS.includes(m[1]);
+  const keyNameOf = (k) => {
+    let found = null;
+    for (const [name, sf] of k[1] === 0 ? KEY_MAJOR : k[1] === 1 ? KEY_MINOR : []) {
+      if (sf === k[0]) found = name + (k[1] === 1 ? "m" : "");
+    }
+    return found;
+  };
+  let meter = meters.has(0) ? meters.get(0) : null;
+  const key = keys.has(0) ? keys.get(0) : null;
+  meters.delete(0);
+  keys.delete(0);
+  const byTick = (map) => Array.from(map.keys()).sort((x, y) => x - y);
+  const meterAts = byTick(meters).filter((t) => validMeter(meters.get(t))).map((t) => [t, meters.get(t)]);
+  const keyAts = byTick(keys).filter((t) => keyNameOf(keys.get(t)) !== null).map((t) => [t, keyNameOf(keys.get(t))]);
+  if (meterAts.length < meters.size) dropped.add("unsupported time signatures");
+  if (keyAts.length < keys.size) dropped.add("invalid key signature");
+  const out = [meterAts.length > 0 || keyAts.length > 0 ? "loma 1.1" : "loma 1.0"];
   if (title !== null) out.push('title "' + title + '"');
   if (!tempos.has(0)) {
     warnings.push("no tempo at tick 0: 120 BPM assumed");
@@ -2052,16 +2164,13 @@ function decompile(data) {
   }
   if (meter === null) {
     meter = [4, 4];
-  } else if (!(meter[0] >= 1 && meter[0] <= 64 && VALID_DENOMINATORS.includes(meter[1]))) {
+  } else if (!validMeter(meter)) {
     warnings.push("time signature " + meter[0] + "/" + meter[1] + " is not supported: 4/4 used");
     meter = [4, 4];
   }
   out.push("meter " + meter[0] + "/" + meter[1]);
   if (key !== null) {
-    let keyName = null;
-    for (const [name, sf] of key[1] === 0 ? KEY_MAJOR : key[1] === 1 ? KEY_MINOR : []) {
-      if (sf === key[0]) keyName = name + (key[1] === 1 ? "m" : "");
-    }
+    const keyName = keyNameOf(key);
     if (keyName !== null) out.push("key " + keyName);
     else dropped.add("invalid key signature");
   }
@@ -2093,8 +2202,14 @@ function decompile(data) {
     if (!exact) warnings.push("tempo " + tempos.get(t) + " us per quarter at tick " + t + " is not an integer BPM: " + bpm + " BPM used");
     out.push("at " + t + " tempo=" + bpm);
   }
-  for (const [, , ch] of decl) {
-    if (ch === null) continue;
+  for (const [t, m] of meterAts) out.push("at " + t + " meter=" + m[0] + "/" + m[1]);
+  for (const [t, name] of keyAts) out.push("at " + t + " key=" + name);
+  for (const [order, , ch] of decl) {
+    if (ch === null) {                // the drums track without notes: it can still carry lyrics
+      const words = (lyrics.get(order[0]) || []).slice().sort((x, y) => (x[0] - y[0]) || (x[1] - y[1]));
+      for (const [t, , text] of words) out.push("at " + t + " " + trackNames.get(10) + ' "' + text + '"');
+      continue;
+    }
     const info = channels.get(ch), name = trackNames.get(ch);
     const lines = [], starts = new Set();
     for (const [start, ti, seq, pitch, dur, vel] of info.notes) {

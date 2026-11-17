@@ -1,4 +1,4 @@
-(* LOMA 1.0 - formal grammar (ISO/IEC 14977 EBNF).
+(* LOMA 1.1 - formal grammar (ISO/IEC 14977 EBNF).
 
    The grammar describes the syntax accepted by the reference compiler. It was written after
    the implementation and is checked against it by the conformance suite.
@@ -16,7 +16,7 @@
 
 file            = header , { statement } ;
 header          = "loma" , ws , version ;                                  (* first non-empty line *)
-version         = "0.1" | "0.2" | "0.3" | "1.0" ;
+version         = "0.1" | "0.2" | "0.3" | "1.0" | "1.1" ;
 
 statement       = title | tempo | meter | key | track | pattern | swing | voicing
                 | section | play | at ;
@@ -25,7 +25,8 @@ statement       = title | tempo | meter | key | track | pattern | swing | voicin
 title           = "title" , ws , '"' , { char - '"' } , '"' ;
 tempo           = "tempo" , ws , integer ;                                 (* 4..400 *)
 meter           = "meter" , ws , integer , "/" , integer ;
-key             = "key" , ws , note letter , [ accidental ] , [ "m" ] ;
+key             = "key" , ws , key name ;
+key name        = note letter , [ accidental ] , [ "m" ] ;
 track           = "track" , ws , name , ws , ( "drums" | track option , { ws , track option } ) ;
 track option    = "ch=" , integer | "program=" , integer ;
 
@@ -47,7 +48,8 @@ section         = "section" , ws , name , newline , { block } , "end" ;
 block           = bar | repeat ;
 repeat          = "repeat" , ws , integer , newline , { block } , "end" , newline ;   (* since 0.2 *)
 bar             = "bar" , ws , bar item , { ws , bar item } , newline , { track line } ;
-bar item        = chord | "len=" , duration | "tempo=" , integer , [ ">" , integer ] ;
+bar item        = chord | "len=" , duration | "tempo=" , integer , [ ">" , integer ]
+                | "meter=" , integer , "/" , integer | "key=" , key name ;     (* since 1.1 *)
 track line      = name , [ line attributes ] , ":" , [ content ] , newline ,
                   { content , newline } ;                                  (* more lines since 0.2 *)
 content         = segment , { "|" , segment } ;                            (* "|" since 0.2 *)
@@ -94,7 +96,9 @@ at              = "at" , ws , integer , ws , name , ws , pitch , ws , at option 
                 | "at" , ws , integer , ws , name , ws , "cc" , integer , "=" , integer    (* since 1.0 *)
                 | "at" , ws , integer , ws , name , ws , "bend=" , bend value             (* since 1.0 *)
                 | "at" , ws , integer , ws , name , ws , lyric                            (* since 1.0 *)
-                | "at" , ws , integer , ws , "tempo=" , integer ;                         (* since 1.0 *)
+                | "at" , ws , integer , ws , "tempo=" , integer                           (* since 1.0 *)
+                | "at" , ws , integer , ws , "meter=" , integer , "/" , integer           (* since 1.1 *)
+                | "at" , ws , integer , ws , "key=" , key name ;                          (* since 1.1 *)
 at option       = "d=" , integer | "v=" , integer ;
 
 (* ---- lexical elements [4] *)

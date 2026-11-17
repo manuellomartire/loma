@@ -1,6 +1,6 @@
-# LOMA 1.0 — Specifica del linguaggio
+# LOMA 1.1 — Specifica del linguaggio
 
-Versione del linguaggio: **1.0**. Estensione dei file: `.loma`. Versione inglese: [SPEC.md](SPEC.md). Se i due testi non coincidono, decide la suite di conformità.
+Versione del linguaggio: **1.1**. Estensione dei file: `.loma`. Versione inglese: [SPEC.md](SPEC.md). Se i due testi non coincidono, decide la suite di conformità.
 
 LOMA è un linguaggio testuale per descrivere musica, pensato per essere scritto da un'AI e compilato in modo deterministico in un file MIDI: lo stesso file `.loma` produce lo stesso `.mid`, byte per byte, con qualsiasi compilatore conforme.
 
@@ -100,8 +100,8 @@ track Kit drums
 |---|---|---|
 | `title "TESTO"` | Al massimo una. Il testo non contiene `"`. | nessun titolo |
 | `tempo N` | Al massimo una. BPM in **semiminime** al minuto, intero 4–400 (`E015`). | 120 |
-| `meter N/D` | Al massimo una. N da 1 a 64, D in 1, 2, 4, 8, 16, 32, 64 (`E018`). | 4/4 |
-| `key K` | Al massimo una. Non cambia le note: viene scritta nel MIDI come Key Signature. Tonalità valide in §16 (`E013`). | nessuna |
+| `meter N/D` | Al massimo una. N da 1 a 64, D in 1, 2, 4, 8, 16, 32, 64 (`E018`). Dalla 1.1 una battuta può cambiarlo (§10.2). | 4/4 |
+| `key K` | Al massimo una. Non cambia le note: viene scritta nel MIDI come Key Signature. Tonalità valide in §16 (`E013`). Dalla 1.1 una battuta può cambiarla (§10.2). | nessuna |
 | `track NOME ch=N [program=P]` | Canale 1–16 escluso 10, esclusivo per ogni track (`E011`). Program 0–127. | program 0 |
 | `track NOME drums` | Batteria sul canale 10; al massimo una (`E011`). Nessuna opzione. | |
 
@@ -173,7 +173,7 @@ Gli elementi devono essere separati da spazi (`C4/4C4/4` è `E001`).
 
 `~` si scrive subito dopo la durata, prima delle graffe: `C4/2~ C4/4`, `C4/2~{v=80} C4/4`.
 
-- La nota successiva dello stesso track deve avere la **stessa altezza** e iniziare esattamente dove finisce questa. Per gli accordi: lo stesso insieme di altezze.
+- La nota successiva dello stesso track (dalla 1.1: della stessa voce del track, §10.3) deve avere la **stessa altezza** e iniziare esattamente dove finisce questa. Per gli accordi: lo stesso insieme di altezze.
 - La nota legata successiva **non può avere attributi propri** (né sull'elemento né sulle singole note).
 - Velocity, offset e articolazione sono quelli della **prima** nota. La durata scritta della nota fusa è la somma delle durate.
 - Una legatura può attraversare battute, segmenti, sezioni e blocchi `repeat`, ma non il confine fra due `play` diversi.
@@ -383,15 +383,28 @@ Una sezione è una sequenza di battute e di blocchi `repeat`. Una sezione mai es
 ### 10.2 Battute
 
 ```
-bar ACCORDO [ACCORDO ...] [len=/D] [tempo=N | tempo=N>M]
+bar ACCORDO [ACCORDO ...] [len=/D] [tempo=N | tempo=N>M] [meter=N/D] [key=K]
 ```
 
 - Almeno un accordo. Accordi e opzioni possono stare in qualsiasi ordine.
-- **Lunghezza**: `numeratore * (1920 // denominatore)` dal `meter` (4/4 = 1920, 3/4 = 1440, 6/8 = 1440), oppure `len=/D` per battute irregolari e anacrusi.
+- **Lunghezza**: `numeratore * (1920 // denominatore)` dal metro in vigore (4/4 = 1920, 3/4 = 1440, 6/8 = 1440), oppure `len=/D` per battute irregolari e anacrusi.
 - **`tempo=N`**: cambio di tempo all'inizio della battuta.
 - **`tempo=N>M`**: rallentando o accelerando lineare che arriva a `M` alla fine della battuta. Eventi: uno ogni 480 tick, per `k = 0, 1, ...` finché `k * 480 < len`, con `bpm = N + (M - N) * (k * 480) // len`; più uno finale al tick di fine battuta con valore `M`. Esempio, 4/4, `tempo=100>70`: 100, 92, 85, 77 ai tick 0, 480, 960, 1440 e 70 al tick 1920.
 - I BPM sono interi da 4 a 400 (`E015`). Tutta la curva si calcola in BPM; la conversione in microsecondi avviene solo scrivendo il MIDI.
 - Nel brano c'è **al massimo un tempo per tick: vince l'ultimo** dichiarato, in quest'ordine: `tempo` iniziale, battute nell'ordine di esecuzione, poi gli `at ... tempo=` nell'ordine del file.
+- **`meter=N/D`** (dalla 1.1): cambia il metro **da questa battuta alla fine della sezione**, seguendo l'ordine in cui le battute sono scritte (un blocco `repeat` non lo limita). **Ogni sezione comincia nel metro dell'intestazione**: la lunghezza di una battuta dipende solo dal testo della sua sezione, mai da ciò che è stato suonato prima. Stessi limiti di `meter` (`E018`). `len=` continua a fissare la lunghezza di una sola battuta senza cambiare il metro.
+- **`key=K`** (dalla 1.1): cambia la tonalità allo stesso modo, da questa battuta alla fine della sezione; ogni sezione comincia nella tonalità dell'intestazione. Come `key`, non cambia le note, e `transpose` non la modifica.
+- **Indicazioni nel file MIDI.** Una battuta scrive una Time Signature al suo inizio quando il suo metro è diverso da quello della battuta suonata prima (per la prima battuta: da quello dell'intestazione), e una Key Signature quando la sua tonalità è diversa dall'ultima scritta. Una battuta senza tonalità in vigore (nessun `key` nell'intestazione, nessun `key=` prima di lei nella sezione) non ne scrive.
+- Nel brano c'è **al massimo un'indicazione di metro e una di tonalità per tick: vince l'ultima** dichiarata, in quest'ordine: l'intestazione, le battute nell'ordine di esecuzione, poi gli `at ... meter=` e `at ... key=` nell'ordine del file. Quella che vince al tick 0 prende il posto di quella dell'intestazione.
+
+```
+section waltz
+  bar C meter=3/4        # 1440 tick, e così le battute che seguono
+    P: C4/2.
+  bar G
+    P: G4/2.
+end
+```
 
 ### 10.3 Linee di track
 
@@ -399,7 +412,7 @@ bar ACCORDO [ACCORDO ...] [len=/D] [tempo=N | tempo=N>M]
 TRACK{attributi di linea}: contenuto
 ```
 
-- Un track ha al massimo una linea per battuta (`E001`). Un track non nominato tace.
+- Fino alla 1.0 un track ha al massimo una linea per battuta (`E001`). Dalla 1.1 può averne più d'una: vedi *Voci* più sotto. Un track non nominato tace.
 - Dalla 0.2 il contenuto può continuare sulle righe successive: ogni riga che non è `bar`, `repeat`, `end` o una nuova linea di track continua la linea precedente.
 - Una linea senza alcun contenuto dà `E001`.
 - Il contenuto deve riempire **esattamente** la battuta, altrimenti `E003`.
@@ -408,6 +421,18 @@ TRACK{attributi di linea}: contenuto
 RH{v=70}:
   C5/8 D5/8 E5/4
   G5/2
+```
+
+**Voci (dalla 1.1).** Quando un track ha più linee in una battuta, ogni linea è una **voce** indipendente: la prima linea del track nella battuta è la voce 0, la seconda la voce 1, e così via.
+
+- Ogni voce ha i suoi attributi di linea e riempie la battuta esattamente per conto suo; può usare pattern e segmenti come ogni linea.
+- Tutte le voci suonano sul canale del track. Fra loro vale la regola di duplicati e sovrapposizioni (§14): la stessa altezza che inizia allo stesso tick in due voci dà `E017`, e una nota che inizia mentre la stessa altezza sta suonando in un'altra voce la tronca.
+- Una legatura unisce note con lo **stesso numero di voce**: la voce 1 di una battuta continua nella voce 1 della battuta suonata dopo.
+
+```
+bar C
+  Pno{v=85}: E5/2 G5/2        # voce 0: melodia
+  Pno{v=55}: C3/1             # voce 1: basso
 ```
 
 ### 10.4 Più accordi nella stessa battuta
@@ -454,13 +479,16 @@ at TICK TRACK ccN=V             # dalla 1.0
 at TICK TRACK bend=V            # dalla 1.0
 at TICK TRACK "testo"           # dalla 1.0
 at TICK tempo=BPM               # dalla 1.0
+at TICK meter=N/D               # dalla 1.1
+at TICK key=K                   # dalla 1.1
 ```
 
 - La nota è già risolta: `d=` è obbligatorio ed è la durata sonora; non ha offset, articolazione né legature; `v=` vale 80 se omesso.
 - Le note `at` partecipano al controllo di duplicati e sovrapposizioni (§14).
 - Le forme `at` non accettano rampe e non vengono trasposte.
+- `at ... meter=` e `at ... key=` scrivono soltanto un'indicazione nel file MIDI (§10.2): non cambiano la lunghezza di nessuna battuta.
 
-`loma decompile` usa queste forme per riscrivere un file MIDI come sorgente LOMA senza perdite.
+`loma decompile` usa queste forme per riscrivere un file MIDI come sorgente LOMA senza perdite; il sorgente dichiara `loma 1.1` solo quando il file ha indicazioni dopo il tick 0.
 
 ## 12. Limiti
 
@@ -531,7 +559,7 @@ Gli errori sono riportati **ordinati per riga**, poi per codice, senza ripetizio
 Le due fasi sono riportate insieme, così un solo giro di correzioni vede più errori possibile. Quando la fase sintattica ha trovato errori, la fase semantica è **ridotta** a ciò che non dipende dalle righe mancanti:
 
 - si eseguono solo il controllo delle sezioni non definite e i controlli di battuta; legature, note duplicate e limiti (`E012`, `E017`, `E018`) si controllano solo su un file sintatticamente pulito;
-- una battuta con la riga `bar` sbagliata non viene controllata; nelle altre battute una linea di track con un errore di sintassi (anche vuota) viene saltata, e il primo errore si cerca fra le linee rimanenti;
+- una battuta con la riga `bar` sbagliata non viene controllata, e se quella riga contiene `meter=` non lo sono nemmeno le battute che la seguono nella sezione (la loro lunghezza non è nota); nelle altre battute una linea di track con un errore di sintassi (anche vuota) viene saltata, e il primo errore si cerca fra le linee rimanenti;
 - l'uso di un pattern, uno swing, un voicing o una sezione la cui definizione ha un errore di sintassi non è un errore: quella linea di track (o quel `play`) viene saltata. Il nome di una definizione fallita è il più lungo nome valido all'inizio della parola che segue la parola chiave;
 - una sezione con la riga `section` sbagliata viene validata come una sezione mai eseguita;
 - ogni battuta è controllata una volta per ogni `play` che usa la sua sezione, con la trasposizione di quel `play`;
@@ -552,13 +580,13 @@ Riga riportata: quella dove è scritto il costrutto. Per `E003` è la riga dell'
 
 Per ogni nota un compilatore MUST applicare i passi in quest'ordine:
 
-1. **Espansione.** `play`, ripetizioni, `repeat`, trasposizione, pattern e voicing producono per ogni track una sequenza di note con posizione (cursore) e durata scritta.
+1. **Espansione.** `play`, ripetizioni, `repeat`, trasposizione, pattern e voicing producono per ogni voce di ogni track una sequenza di note con posizione (cursore) e durata scritta.
 2. **Attributi.** Default, poi linea (con rampa di velocity e swing calcolati alla posizione della nota), poi elemento, poi nota.
-3. **Legature.** Le note legate si fondono in una sola: durata scritta = somma, attributi della prima.
+3. **Legature.** Dentro ogni voce, le note legate si fondono in una sola: durata scritta = somma, attributi della prima.
 4. **Durata sonora.** `d=` se presente, altrimenti `max(1, durata_scritta * pct // 100)`.
 5. **Offset.** `inizio = max(0, posizione + o + swing)`, `fine = inizio + durata_sonora`.
 6. **Duplicati e sovrapposizioni**, fra tutte le note con la stessa altezza sullo stesso canale (comprese le note `at`), ordinate per inizio: due note con lo stesso inizio danno `E017`; se una nota riparte mentre la precedente suona ancora, la fine della precedente viene portata all'inizio della nuova.
-7. **Eventi.** Note-on, note-off, controlli e tempo passano all'ordinamento di §15.
+7. **Eventi.** Note-on, note-off, controlli, tempo e indicazioni passano all'ordinamento di §15.
 
 ## 15. Eventi: ordine e JSON canonico
 
@@ -570,11 +598,11 @@ Tutti gli eventi sono ordinati per la chiave:
 (tick, tipo, indice_track, canale, altezza, numero_progressivo)
 ```
 
-Tipi nello stesso tick: **0** tempo, **1** note-off, **2** controlli (control change, pitch bend, testi), **3** note-on. Un note-off prima del note-on permette di ribattere la stessa nota; un controllo prima del note-on agisce sulla nota che inizia in quel tick.
+Tipi nello stesso tick: **−2** indicazione di metro, **−1** indicazione di tonalità, **0** tempo, **1** note-off, **2** controlli (control change, pitch bend, testi), **3** note-on. Un note-off prima del note-on permette di ribattere la stessa nota; un controllo prima del note-on agisce sulla nota che inizia in quel tick.
 
-- Gli eventi di tempo hanno `indice_track = -1`, canale 0, altezza 0.
+- Gli eventi di tempo e le indicazioni hanno `indice_track = -1`, canale 0, altezza 0, numero progressivo 0.
 - I controlli hanno altezza 0, quindi nello stesso tick restano nell'ordine in cui sono stati generati.
-- `numero_progressivo` è un contatore **per track** che parte da 0. Si assegna dopo le legature, percorrendo gli elementi del track nell'ordine di espansione (battute in ordine di esecuzione; dentro una battuta, le parti e gli elementi nell'ordine scritto; i passi di un pattern in ordine): ogni evento di controllo prende un numero (una rampa: uno per ciascun evento); ogni nota ne prende due consecutivi, note-on e note-off; le note di un accordo nell'ordine scritto, quelle di un gruppo o di un voicing nell'ordine dei toni. Una nota fusa da una legatura è numerata al posto della sua prima nota. Gli eventi `at` sono numerati **dopo** tutti gli altri eventi del track, nell'ordine del file.
+- `numero_progressivo` è un contatore **per track** che parte da 0. Si assegna dopo le legature, percorrendo gli elementi del track **voce per voce** (tutta la voce 0, poi tutta la voce 1, e così via), ciascuna nell'ordine di espansione (battute in ordine di esecuzione; dentro una battuta, le parti e gli elementi nell'ordine scritto; i passi di un pattern in ordine): ogni evento di controllo prende un numero (una rampa: uno per ciascun evento); ogni nota ne prende due consecutivi, note-on e note-off; le note di un accordo nell'ordine scritto, quelle di un gruppo o di un voicing nell'ordine dei toni. Una nota fusa da una legatura è numerata al posto della sua prima nota. Gli eventi `at` sono numerati **dopo** tutti gli altri eventi del track, nell'ordine del file.
 
 Un compilatore non deve mai affidarsi all'ordine implicito di dizionari, insiemi o librerie: costruisce la lista e la ordina con questa chiave.
 
@@ -587,11 +615,15 @@ Formato: un array JSON su una sola riga, seguito da un solo a capo. Ogni evento 
 | `type` | Campi |
 |---|---|
 | `tempo` | `bpm`, `tick`, `type` |
+| `meter` | `den`, `num`, `tick`, `type` |
+| `key` | `mi`, `sf`, `tick`, `type` |
 | `note_on` | `ch`, `pitch`, `tick`, `track`, `type`, `vel` |
 | `note_off` | `ch`, `pitch`, `tick`, `track`, `type` |
 | `cc` | `ch`, `controller`, `tick`, `track`, `type`, `value` |
 | `bend` | `ch`, `tick`, `track`, `type`, `value` |
 | `lyric` | `text`, `tick`, `track`, `type` |
+
+Le indicazioni di metro e di tonalità al tick 0 non sono eventi: come il titolo e i programmi, fanno parte dell'inizio del file MIDI (§16). Gli eventi `meter` e `key` esistono solo dopo il tick 0, con `sf` e `mi` come nella tabella di §16.
 
 ```
 [{"bpm":120,"tick":0,"type":"tempo"},{"ch":1,"pitch":60,"tick":0,"track":"P","type":"note_on","vel":80},{"ch":1,"pitch":60,"tick":1728,"track":"P","type":"note_off"}]
@@ -603,9 +635,9 @@ Formato: un array JSON su una sola riga, seguito da un solo a capo. Ogni evento 
 - `MThd`: lunghezza 6, formato 1, numero di track = 1 + numero di `track` dichiarati, divisione `0x01E0`.
 - **Track 0 (conductor)**, al tick 0 in quest'ordine:
   1. Track Name `FF 03` con il `title`, se presente (UTF-8);
-  2. Time Signature `FF 58 04 nn dd 18 08`: `nn` numeratore, `dd` log2 del denominatore;
-  3. Key Signature `FF 59 02 sf mi`, se `key` è presente (tabella sotto);
-  4. gli eventi Set Tempo `FF 51 03 tttttt`, ciascuno al suo tick. Valore: `60000000 // bpm` microsecondi per semiminima, su 3 byte.
+  2. Time Signature `FF 58 04 nn dd 18 08` del metro al tick 0: `nn` numeratore, `dd` log2 del denominatore;
+  3. Key Signature `FF 59 02 sf mi` della tonalità al tick 0, se c'è (tabella sotto);
+  4. gli eventi Set Tempo `FF 51 03 tttttt`, ciascuno al suo tick. Valore: `60000000 // bpm` microsecondi per semiminima, su 3 byte. Dalla 1.1 qui si scrivono anche gli eventi Time Signature e Key Signature dopo il tick 0, con gli stessi byte indicati sopra, tutti nell'ordine di §15.1.
 - Un track MIDI per ogni `track`, nell'ordine di dichiarazione. Al tick 0: Track Name `FF 03` con il nome LOMA, poi Program Change `Cn pp` (non per `drums`), poi gli eventi del track nell'ordine di §15.1.
 - Codifica, con `n` = canale − 1:
 
@@ -700,6 +732,7 @@ Ogni versione è un soprainsieme della precedente: un file valido in una version
 | **0.2** | `ccN=`, `bend=` e rampe; rampa di velocity `v=N>M`; `swing`; contenuto su più righe; segmenti con `\|`; elenchi `use A,B`; `pattern ... from`; quintine `q` e gruppi `xA/B`; blocchi `repeat` |
 | **0.3** | Accordi estesi; inversioni `^K`; basso `/X` e tono `0`; toni `9 11 16 18`; segni d'ottava; `voicing` e `*NOME` |
 | **1.0** | Testi `"..."`; altezze numeriche `mN`; `at` con `cc`, `bend`, testo e `tempo` |
+| **1.1** | Opzioni di battuta `meter=` e `key=`; `at` con `meter` e `key`; più voci su un track |
 
 ## 19. Esempio completo
 

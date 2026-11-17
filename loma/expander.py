@@ -21,11 +21,22 @@ def undefined(song, kind, table, name, line, ctx):
     return LomaError("E004", "%s '%s' is not defined.%s" % (kind, name, text), line, **dict(ctx, **extra))
 
 
+def bar_length(song, bar):
+    """Ticks of a bar: its 'len=', or else the meter in effect (its own or the one of the header)."""
+    if bar.len_ticks:
+        return bar.len_ticks
+    num, den = bar.meter or song.meter
+    return num * (WHOLE // den)
+
+
 class Compiled:
-    def __init__(self, song, events, end_tick):
+    def __init__(self, song, events, end_tick, meter=None, key=None, bars=()):
         self.song = song
         self.events = events
         self.end_tick = end_tick
+        self.meter = meter or song.meter    # time and key signature at tick 0
+        self.key = key
+        self.bars = list(bars)              # start tick of every bar played, in order
 
     @property
     def track_names(self):
@@ -229,7 +240,7 @@ class BarExpander:
             raise LomaError("E003", msg, line, **dict(tctx, **extra))
 
     def expand(self, sec, bar, start, play_idx, transpose, bar_len):
-        """Returns [(track index, [RItem])]. Raises the first error of the bar."""
+        """Returns [(track index, voice, [RItem])]. Raises the first error of the bar."""
         ctx = {"section": sec.name, "bar": bar.number, "chord": " ".join(c.name for c in bar.chords)}
         n = len(bar.chords)
         if bar_len % n:
@@ -257,7 +268,7 @@ class BarExpander:
                         self.fill_explicit(tl, part, bar, seg, start, k * seg, seg, bar_len, play_idx, transpose, tctx, out, False)
             except _Quiet:
                 continue
-            result.append((tl.track.index, out))
+            result.append((tl.track.index, tl.voice, out))
         return result
 
 
@@ -308,6 +319,26 @@ def build_tempo_map(song, timeline):
     return tmap
 
 
+def build_signature_maps(song, timeline):
+    """({tick: (num, den)}, {tick: (sf, mi)}): one time signature and one key signature per tick, the last one wins.
+
+    A bar writes a signature when the one in effect differs from that of the bar played before it."""
+    meters, keys = {0: song.meter}, {0: song.key}
+    meter, key = song.meter, song.key
+    for (sec, bar, start, pi, tr, length) in timeline:
+        m, k = bar.meter or song.meter, bar.key or song.key
+        if m != meter:
+            meters[start] = meter = m
+        if k is not None and k != key:
+            keys[start] = key = k
+    for at in song.ats:
+        if at.kind == "meter":
+            meters[at.tick] = at.value
+        elif at.kind == "key":
+            keys[at.tick] = at.value
+    return meters, keys
+
+
 def resolve_ties(track, items, errors):
     n = len(items)
     cont = [None] * n
@@ -349,7 +380,6 @@ def check_bars(song):
     in the song does not matter for these errors. Returns the list of errors."""
     errors = []
     expander = BarExpander(song, Budget())
-    meter_len = song.meter[0] * (WHOLE // song.meter[1])
     todo, played = [], set()
     for pi, play in enumerate(song.plays):
         sec = song.sections.get(play.name)
@@ -367,8 +397,10 @@ def check_bars(song):
             flat = []
             all_bars(sec.body, flat)
             for bar in flat:
+                if bar.uncertain:               # its meter was set by a 'bar' line that is wrong
+                    continue
                 try:
-                    expander.expand(sec, bar, 0, pi, transpose, bar.len_ticks or meter_len)
+                    expander.expand(sec, bar, 0, pi, transpose, bar_length(song, bar))
                 except LomaError as e:
                     errors.append(e)
     except LomaErrors:
@@ -380,7 +412,6 @@ def compile_song(song):
     errors = []
     budget = Budget()
     expander = BarExpander(song, budget)
-    meter_len = song.meter[0] * (WHOLE // song.meter[1])
 
     # ---- timeline
     timeline, cursor, played, bars = [], 0, set(), 0
@@ -398,7 +429,7 @@ def compile_song(song):
         flatten(sec.body, flat)
         for _ in range(play.times):
             for bar in flat:
-                length = bar.len_ticks or meter_len
+                length = bar_length(song, bar)
                 timeline.append((sec, bar, cursor, pi, play.transpose, length))
                 cursor += length
                 if cursor > MAX_TICK:
@@ -406,11 +437,11 @@ def compile_song(song):
     total_len = cursor
 
     # ---- expand bars (first error of each bar)
-    track_items = [[] for _ in song.tracks]
+    track_items = [{} for _ in song.tracks]     # for each track: voice number -> items
     for (sec, bar, start, pi, tr, length) in timeline:
         try:
-            for ti, items in expander.expand(sec, bar, start, pi, tr, length):
-                track_items[ti].extend(items)
+            for ti, voice, items in expander.expand(sec, bar, start, pi, tr, length):
+                track_items[ti].setdefault(voice, []).extend(items)
         except LomaError as e:
             errors.append(e)
     for sec in song.sections.values():          # sections never played are still validated
@@ -420,7 +451,7 @@ def compile_song(song):
         all_bars(sec.body, flat)
         for bar in flat:
             try:
-                expander.expand(sec, bar, 0, -1, 0, bar.len_ticks or meter_len)
+                expander.expand(sec, bar, 0, -1, 0, bar_length(song, bar))
             except LomaError as e:
                 errors.append(e)
 
@@ -429,32 +460,40 @@ def compile_song(song):
     tempo_map = build_tempo_map(song, timeline)
     for tick in sorted(tempo_map):
         events.append(Event(tick, "tempo", -1, 0, 0, 0, {"bpm": tempo_map[tick]}))
+    meter_map, key_map = build_signature_maps(song, timeline)
+    for tick in sorted(meter_map):
+        if tick > 0:
+            events.append(Event(tick, "meter", -1, 0, 0, 0, {"num": meter_map[tick][0], "den": meter_map[tick][1]}))
+    for tick in sorted(key_map):
+        if tick > 0:
+            events.append(Event(tick, "key", -1, 0, 0, 0, {"sf": key_map[tick][0], "mi": key_map[tick][1]}))
 
     # ---- ties, sounding length, offset, sequence numbers
     resolved = []
     counters = [0] * len(song.tracks)
     for track in song.tracks:
-        items = track_items[track.index]
-        cont, total = resolve_ties(track, items, errors)
         c = 0
-        for i, it in enumerate(items):
-            if it.kind == "ctl":
-                for tick, kind, data in it.controls:
-                    if tick > MAX_TICK:
-                        errors.append(LomaError("E018", "event at tick %d exceeds the maximum %d" % (tick, MAX_TICK), it.line, **it.ctx))
-                        break
-                    events.append(Event(tick, kind, track.index, track.ch, 0, c, data))
-                    c += 1
-            elif cont[i] is None:
-                for pitch, m in it.notes:
-                    sounding = m["d"] if "d" in m else max(1, total[i] * GATE_PCT[m["a"]] // 100)
-                    start = max(0, it.pos + m["o"])
-                    resolved.append({"track": track, "pitch": pitch, "vel": m["v"], "start": start,
-                                     "end": start + sounding, "on": c, "off": c + 1, "line": it.line, "ctx": it.ctx})
-                    c += 2
+        for voice in sorted(track_items[track.index]):    # voice by voice: ties stay inside a voice
+            items = track_items[track.index][voice]
+            cont, total = resolve_ties(track, items, errors)
+            for i, it in enumerate(items):
+                if it.kind == "ctl":
+                    for tick, kind, data in it.controls:
+                        if tick > MAX_TICK:
+                            errors.append(LomaError("E018", "event at tick %d exceeds the maximum %d" % (tick, MAX_TICK), it.line, **it.ctx))
+                            break
+                        events.append(Event(tick, kind, track.index, track.ch, 0, c, data))
+                        c += 1
+                elif cont[i] is None:
+                    for pitch, m in it.notes:
+                        sounding = m["d"] if "d" in m else max(1, total[i] * GATE_PCT[m["a"]] // 100)
+                        start = max(0, it.pos + m["o"])
+                        resolved.append({"track": track, "pitch": pitch, "vel": m["v"], "start": start,
+                                         "end": start + sounding, "on": c, "off": c + 1, "line": it.line, "ctx": it.ctx})
+                        c += 2
         counters[track.index] = c
     for at in song.ats:                         # 'at' events are numbered last, in file order
-        if at.kind == "tempo":
+        if at.kind in ("tempo", "meter", "key"):
             continue
         c = counters[at.track.index]
         ctx = {"track": at.track.name}
@@ -498,4 +537,4 @@ def compile_song(song):
         events.append(Event(n["end"], "note_off", tr.index, tr.ch, n["pitch"], n["off"]))
     events = sort_events(events)
     end_tick = max([total_len] + [e.tick for e in events])
-    return Compiled(song, events, end_tick)
+    return Compiled(song, events, end_tick, meter_map[0], key_map[0], [entry[2] for entry in timeline])

@@ -2,7 +2,25 @@
 
 *[English](CHANGELOG.md) · Italiano*
 
-Le versioni del linguaggio sono cumulative: un file valido in una versione produce gli stessi byte se dichiara una versione successiva. Il compilatore 1.0 accetta `loma 0.1`, `0.2`, `0.3` e `1.0`.
+Le versioni del linguaggio sono cumulative: un file valido in una versione produce gli stessi byte se dichiara una versione successiva. Il compilatore accetta `loma 0.1`, `0.2`, `0.3`, `1.0` e `1.1`.
+
+## 1.1 (compilatore 1.2.0)
+
+Linguaggio:
+
+- **Cambi di metro.** Opzione di battuta `meter=N/D`: il metro cambia da quella battuta alla fine della sua sezione. Ogni sezione comincia nel metro dell'intestazione, quindi la lunghezza di una battuta dipende solo dal testo della sua sezione.
+- **Cambi di tonalità.** Opzione di battuta `key=K`, con la stessa validità. Scrive una Key Signature e non cambia le note.
+- **Più voci su un track.** Un track può avere più linee in una battuta: ogni linea è una voce indipendente che riempie la battuta per conto suo. Le legature restano dentro una voce; duplicati e sovrapposizioni si controllano fra tutte le voci.
+- `at TICK meter=N/D` e `at TICK key=K`, usati da `loma decompile` per conservare le indicazioni di un file MIDI.
+- Nuovi tipi di evento `meter` e `key` nel JSON canonico, ordinati prima di `tempo` nello stesso tick.
+- I file che dichiarano `loma 1.0` o precedenti producono gli stessi byte di prima.
+
+Strumenti:
+
+- Suite di conformità: 7 nuovi casi validi (`5xx`) e 10 nuovi casi di errore.
+- `loma decompile` conserva i cambi di metro e di tonalità (dichiara `loma 1.1` solo quando il file ne ha).
+- La consegna per le AI insegna `loma 1.1` ed è più esplicita sugli sbagli visti nei primi brani scritti da altri modelli (battute con due accordi, `|`, lunghezza dei pattern).
+- Nuovo esempio `examples/carillon.loma`; primi brani di altri modelli in `experiment/submissions/`.
 
 ## Compilatore 1.1.0 (linguaggio 1.0)
 

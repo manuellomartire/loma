@@ -18,7 +18,7 @@ DEFAULT_METER = (4, 4)
 VALID_DENOMINATORS = (1, 2, 4, 8, 16, 32, 64)
 GATE_PCT = {"leg": 100, "norm": 90, "stac": 50}
 
-VERSIONS = {"0.1": (0, 1), "0.2": (0, 2), "0.3": (0, 3), "1.0": (1, 0)}
+VERSIONS = {"0.1": (0, 1), "0.2": (0, 2), "0.3": (0, 3), "1.0": (1, 0), "1.1": (1, 1)}
 
 RESERVED = frozenset((
     "loma", "title", "tempo", "meter", "key", "track", "pattern", "swing", "voicing",
@@ -151,6 +151,7 @@ class TrackLine:
     parts: list
     line: int
     failed: bool = False
+    voice: int = 0       # 0 for the first line of its track in the bar, 1 for the second, ...
 
 
 @dataclass
@@ -161,6 +162,9 @@ class Bar:
     track_lines: list
     line: int
     number: int
+    meter: tuple = None      # (num, den) in effect in this bar; None = the meter of the header
+    key: tuple = None        # (sf, mi) in effect in this bar; None = the key of the header
+    uncertain: bool = False  # follows a wrong 'bar' line that set the meter: its length is not known
 
 
 @dataclass
@@ -187,7 +191,7 @@ class Play:
 
 @dataclass
 class AtEvent:
-    kind: str            # "note", "cc", "bend", "lyric", "tempo"
+    kind: str            # "note", "cc", "bend", "lyric", "tempo", "meter", "key"
     tick: int
     line: int
     track: Track = None
@@ -195,7 +199,7 @@ class AtEvent:
     d: int = 0
     v: int = 0
     num: int = 0
-    value: int = 0
+    value: object = 0    # an integer; (num, den) for "meter"; (sf, mi) for "key"
     text: str = None
 
 

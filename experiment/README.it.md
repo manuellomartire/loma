@@ -7,7 +7,7 @@ L'ipotesi da verificare è questa: un modello riesce a scrivere musica in LOMA i
 ## Protocollo
 
 1. Dai a un'AI il testo di [prompt.md](prompt.md) (inglese) oppure di [prompt.it.md](prompt.it.md) (italiano), senza altro. Annota quale hai usato: le due versioni hanno le stesse regole, ma la lingua può cambiare il risultato.
-2. Salva ogni risposta così com'è (le cartelle `brano1`, `brano2`, `brano3` sono Brano 1, 2 e 3 della consegna):
+2. Salva ogni risposta così com'è (le cartelle `brano1`, `brano2`, `brano3` sono Brano 1, 2 e 3 della consegna; ogni altro nome, per esempio `free`, è un brano senza consegna):
 
    ```
    experiment/submissions/NOME_MODELLO/brano1/attempt1.loma
@@ -46,4 +46,6 @@ L'ipotesi da verificare è questa: un modello riesce a scrivere musica in LOMA i
 
 ## Stato
 
-In `submissions/reference/` ci sono i tre brani scritti dall'autore della specifica e del compilatore. Servono a provare che gli strumenti funzionano e come termine di confronto: **non sono una misura indipendente**, perché chi li ha scritto conosceva già tutte le regole. L'esperimento è completo quando ci sono i brani di altri modelli.
+In `submissions/reference/` ci sono i tre brani scritti dall'autore della specifica e del compilatore. Servono a provare che gli strumenti funzionano e come termine di confronto: **non sono una misura indipendente**, perché chi li ha scritto conosceva già tutte le regole.
+
+In `submissions/chatgpt/`, `gemini/` e `grok/` c'è un brano libero ciascuno, così come il modello l'ha scritto la prima volta: nessuno compila al primo tentativo, e i loro errori (`E003`, `E009`, `E021` nelle battute con due accordi) sono il motivo per cui la consegna ora spiega quelle regole più in dettaglio. L'esperimento è completo quando ci sono i tre brani della consegna scritti da altri modelli, con ogni tentativo salvato.

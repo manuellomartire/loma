@@ -41,7 +41,7 @@
       "end": "$",
       "patterns": [
         { "include": "#comment" },
-        { "match": "\\b(len|tempo)(?==)", "name": "variable.parameter.loma" },
+        { "match": "\\b(len|tempo|meter|key)(?==)", "name": "variable.parameter.loma" },
         { "match": "/#?[0-9]+(?:\\.\\.|\\.|t|q|x[0-9]+/[0-9]+)?", "name": "constant.numeric.duration.loma" },
         { "match": "(?<![A-Za-z0-9])[A-G][#b]?[A-Za-z0-9#]*(?:\\^[0-9]+)?(?:/[A-G][#b]?)?", "name": "entity.name.type.chord.loma" },
         { "match": "[0-9]+", "name": "constant.numeric.loma" }
@@ -55,7 +55,7 @@
       "patterns": [
         { "match": "^[ \\t]*(title|tempo|meter|key|at|repeat|end)\\b", "name": "keyword.control.loma" },
         { "match": "\\b(use|from|drums)\\b", "name": "keyword.other.loma" },
-        { "match": "\\b(base|dur|grid|ch|program|transpose|swing|tempo)(?==)", "name": "variable.parameter.loma" }
+        { "match": "\\b(base|dur|grid|ch|program|transpose|swing|tempo|meter|key)(?==)", "name": "variable.parameter.loma" }
       ]
     },
     "content": {

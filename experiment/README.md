@@ -7,7 +7,7 @@ The hypothesis to verify is this: can a model write music in LOMA more reliably,
 ## Protocol
 
 1. Give an AI the text of [prompt.md](prompt.md) (English) or of [prompt.it.md](prompt.it.md) (Italian), with nothing else. Note which one you used: the two versions have the same rules, but the language can change the result.
-2. Save every answer as it is (the folder names `brano1`, `brano2`, `brano3` are Piece 1, 2 and 3 of the assignment):
+2. Save every answer as it is (the folder names `brano1`, `brano2`, `brano3` are Piece 1, 2 and 3 of the assignment; any other name, for example `free`, is a piece without an assignment):
 
    ```
    experiment/submissions/MODEL_NAME/brano1/attempt1.loma
@@ -46,4 +46,6 @@ The hypothesis to verify is this: can a model write music in LOMA more reliably,
 
 ## Status
 
-`submissions/reference/` contains the three pieces written by the author of the specification and of the compiler. They prove that the tools work and serve as a term of comparison: **they are not an independent measurement**, because whoever wrote them already knew all the rules. The experiment is complete when there are pieces by other models.
+`submissions/reference/` contains the three pieces written by the author of the specification and of the compiler. They prove that the tools work and serve as a term of comparison: **they are not an independent measurement**, because whoever wrote them already knew all the rules.
+
+`submissions/chatgpt/`, `gemini/` and `grok/` contain one free piece each, as first written by the model: none compiles at the first attempt, and their errors (`E003`, `E009`, `E021` in bars with two chords) are the reason why the assignment now explains those rules in more detail. The experiment is complete when there are the three assigned pieces by other models, with every attempt saved.

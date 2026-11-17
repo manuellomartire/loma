@@ -1,6 +1,6 @@
-# LOMA 1.0 — Language specification
+# LOMA 1.1 — Language specification
 
-Language version: **1.0**. File extension: `.loma`. Italian version: [SPEC.it.md](SPEC.it.md). If the two texts disagree, the conformance suite decides.
+Language version: **1.1**. File extension: `.loma`. Italian version: [SPEC.it.md](SPEC.it.md). If the two texts disagree, the conformance suite decides.
 
 LOMA is a text language for describing music, designed to be written by an AI and compiled deterministically to a MIDI file: the same `.loma` file gives the same `.mid`, byte for byte, with any conforming compiler.
 
@@ -100,8 +100,8 @@ track Kit drums
 |---|---|---|
 | `title "TEXT"` | At most one. The text contains no `"`. | no title |
 | `tempo N` | At most one. BPM in **quarter notes** per minute, integer 4–400 (`E015`). | 120 |
-| `meter N/D` | At most one. N from 1 to 64, D one of 1, 2, 4, 8, 16, 32, 64 (`E018`). | 4/4 |
-| `key K` | At most one. It does not change the notes: it is written to the MIDI file as a Key Signature. Valid keys in §16 (`E013`). | none |
+| `meter N/D` | At most one. N from 1 to 64, D one of 1, 2, 4, 8, 16, 32, 64 (`E018`). Since 1.1 a bar can change it (§10.2). | 4/4 |
+| `key K` | At most one. It does not change the notes: it is written to the MIDI file as a Key Signature. Valid keys in §16 (`E013`). Since 1.1 a bar can change it (§10.2). | none |
 | `track NAME ch=N [program=P]` | Channel 1–16 except 10, exclusive to each track (`E011`). Program 0–127. | program 0 |
 | `track NAME drums` | Drums on channel 10; at most one (`E011`). No options. | |
 
@@ -173,7 +173,7 @@ Elements must be separated by blanks (`C4/4C4/4` is `E001`).
 
 `~` is written right after the duration, before the braces: `C4/2~ C4/4`, `C4/2~{v=80} C4/4`.
 
-- The next note of the same track must have the **same pitch** and start exactly where this one ends. For chords: the same set of pitches.
+- The next note of the same track (since 1.1: of the same voice of the track, §10.3) must have the **same pitch** and start exactly where this one ends. For chords: the same set of pitches.
 - The tied note that follows **must not have attributes of its own** (neither on the element nor on single notes).
 - Velocity, offset and articulation are those of the **first** note. The written duration of the merged note is the sum of the durations.
 - A tie may cross bars, segments, sections and `repeat` blocks, but not the boundary between two different `play` statements.
@@ -383,15 +383,28 @@ A section is a sequence of bars and `repeat` blocks. A section that is never pla
 ### 10.2 Bars
 
 ```
-bar CHORD [CHORD ...] [len=/D] [tempo=N | tempo=N>M]
+bar CHORD [CHORD ...] [len=/D] [tempo=N | tempo=N>M] [meter=N/D] [key=K]
 ```
 
 - At least one chord. Chords and options may come in any order.
-- **Length**: `numerator * (1920 // denominator)` from the `meter` (4/4 = 1920, 3/4 = 1440, 6/8 = 1440), or `len=/D` for irregular bars and pickups.
+- **Length**: `numerator * (1920 // denominator)` from the meter in effect (4/4 = 1920, 3/4 = 1440, 6/8 = 1440), or `len=/D` for irregular bars and pickups.
 - **`tempo=N`**: tempo change at the start of the bar.
 - **`tempo=N>M`**: linear ritardando or accelerando that reaches `M` at the end of the bar. Events: one every 480 ticks, for `k = 0, 1, ...` while `k * 480 < len`, with `bpm = N + (M - N) * (k * 480) // len`; plus a final one at the end of the bar with value `M`. Example, 4/4, `tempo=100>70`: 100, 92, 85, 77 at ticks 0, 480, 960, 1440 and 70 at tick 1920.
 - BPM are integers from 4 to 400 (`E015`). The whole curve is computed in BPM; the conversion to microseconds happens only when the MIDI is written.
 - The song has **at most one tempo per tick: the last one declared wins**, in this order: the initial `tempo`, the bars in playing order, then the `at ... tempo=` statements in file order.
+- **`meter=N/D`** (since 1.1): changes the meter **from this bar to the end of the section**, following the order in which the bars are written (a `repeat` block does not limit it). **Every section starts in the meter of the header**: the length of a bar depends only on the text of its section, never on what was played before. Same limits as `meter` (`E018`). `len=` still sets the length of one bar without changing the meter.
+- **`key=K`** (since 1.1): changes the key in the same way, from this bar to the end of the section; every section starts in the key of the header. Like `key`, it does not change the notes, and `transpose` does not change it.
+- **Signatures in the MIDI file.** A bar writes a Time Signature at its start when its meter differs from the meter of the bar played before it (for the first bar: from the header), and a Key Signature when its key differs from the last key written. A bar with no key in effect (no `key` in the header, no `key=` before it in the section) writes none.
+- The song has **at most one time signature and one key signature per tick: the last one declared wins**, in this order: the header, the bars in playing order, then the `at ... meter=` and `at ... key=` statements in file order. The one that wins at tick 0 takes the place of the header's.
+
+```
+section waltz
+  bar C meter=3/4        # 1440 ticks, and so are the bars that follow
+    P: C4/2.
+  bar G
+    P: G4/2.
+end
+```
 
 ### 10.3 Track lines
 
@@ -399,7 +412,7 @@ bar CHORD [CHORD ...] [len=/D] [tempo=N | tempo=N>M]
 TRACK{line attributes}: content
 ```
 
-- A track has at most one line per bar (`E001`). A track that is not named is silent.
+- Until 1.0 a track has at most one line per bar (`E001`). Since 1.1 it may have several: see *Voices* below. A track that is not named is silent.
 - Since 0.2 the content may continue on the following lines: every line that is not `bar`, `repeat`, `end` or a new track line continues the previous line.
 - A line with no content at all gives `E001`.
 - The content must fill the bar **exactly**, otherwise `E003`.
@@ -408,6 +421,18 @@ TRACK{line attributes}: content
 RH{v=70}:
   C5/8 D5/8 E5/4
   G5/2
+```
+
+**Voices (since 1.1).** When a track has several lines in a bar, each line is an independent **voice**: the first line of the track in the bar is voice 0, the second is voice 1, and so on.
+
+- Each voice has its own line attributes and fills the bar exactly on its own; it may use patterns and segments like any line.
+- All the voices play on the channel of the track. The rule for duplicates and overlaps (§14) applies among them: the same pitch starting at the same tick in two voices gives `E017`, and a note that starts while the same pitch is sounding in another voice cuts it.
+- A tie joins notes of the **same voice number**: voice 1 of a bar continues in voice 1 of the next bar played.
+
+```
+bar C
+  Pno{v=85}: E5/2 G5/2        # voice 0: melody
+  Pno{v=55}: C3/1             # voice 1: bass
 ```
 
 ### 10.4 Several chords in one bar
@@ -454,13 +479,16 @@ at TICK TRACK ccN=V             # since 1.0
 at TICK TRACK bend=V            # since 1.0
 at TICK TRACK "text"            # since 1.0
 at TICK tempo=BPM               # since 1.0
+at TICK meter=N/D               # since 1.1
+at TICK key=K                   # since 1.1
 ```
 
 - The note is already resolved: `d=` is required and is the sounding length; it has no offset, articulation or ties; `v=` is 80 when omitted.
 - `at` notes take part in the check for duplicates and overlaps (§14).
 - `at` forms take no ramps and are not transposed.
+- `at ... meter=` and `at ... key=` only write a signature in the MIDI file (§10.2): they do not change the length of any bar.
 
-`loma decompile` uses these forms to rewrite a MIDI file as LOMA source without loss.
+`loma decompile` uses these forms to rewrite a MIDI file as LOMA source without loss; the source declares `loma 1.1` only when the file has signatures after tick 0.
 
 ## 12. Limits
 
@@ -531,7 +559,7 @@ Errors are reported **sorted by line**, then by code, without repetitions (same 
 The two phases are reported together, so that one round of corrections sees as many errors as possible. When the syntax phase found errors, the semantic phase is **reduced** to what does not depend on the missing lines:
 
 - only the undefined sections and the bar checks run; ties, duplicate notes and limits (`E012`, `E017`, `E018`) are checked only on a syntactically clean file;
-- a bar whose `bar` line is wrong is not checked; in the other bars a track line with a syntax error (an empty one included) is skipped, and the first error is looked for among the remaining lines;
+- a bar whose `bar` line is wrong is not checked, and if that line contains `meter=` neither are the bars that follow it in the section (their length is not known); in the other bars a track line with a syntax error (an empty one included) is skipped, and the first error is looked for among the remaining lines;
 - the use of a pattern, swing, voicing or section whose definition has a syntax error is not an error: that track line (or that `play`) is skipped. The name of a failed definition is the longest valid name at the start of the word after the keyword;
 - a section whose `section` line is wrong is validated like a section that is never played;
 - each bar is checked once for every `play` that uses its section, with the transposition of that `play`;
@@ -552,13 +580,13 @@ Reported line: the one where the construct is written. For `E003` it is the line
 
 For every note a compiler MUST apply these steps in this order:
 
-1. **Expansion.** `play`, repetitions, `repeat`, transposition, patterns and voicings produce, for each track, a sequence of notes with a position (cursor) and a written duration.
+1. **Expansion.** `play`, repetitions, `repeat`, transposition, patterns and voicings produce, for each voice of each track, a sequence of notes with a position (cursor) and a written duration.
 2. **Attributes.** Defaults, then line (with the velocity ramp and the swing computed at the position of the note), then element, then note.
-3. **Ties.** Tied notes merge into one: written duration = sum, attributes of the first.
+3. **Ties.** Inside each voice, tied notes merge into one: written duration = sum, attributes of the first.
 4. **Sounding length.** `d=` if present, otherwise `max(1, written_duration * pct // 100)`.
 5. **Offset.** `start = max(0, position + o + swing)`, `end = start + sounding_length`.
 6. **Duplicates and overlaps**, among all notes with the same pitch on the same channel (including `at` notes), sorted by start: two notes with the same start give `E017`; if a note starts while the previous one is still sounding, the end of the previous one is moved to the start of the new one.
-7. **Events.** Note-on, note-off, controls and tempo go to the ordering of §15.
+7. **Events.** Note-on, note-off, controls, tempo and signatures go to the ordering of §15.
 
 ## 15. Events: order and canonical JSON
 
@@ -570,11 +598,11 @@ All events are sorted by the key:
 (tick, type, track_index, channel, pitch, sequence_number)
 ```
 
-Types within the same tick: **0** tempo, **1** note-off, **2** controls (control change, pitch bend, lyrics), **3** note-on. A note-off before the note-on lets the same note be struck again; a control before the note-on acts on the note that starts at that tick.
+Types within the same tick: **−2** time signature, **−1** key signature, **0** tempo, **1** note-off, **2** controls (control change, pitch bend, lyrics), **3** note-on. A note-off before the note-on lets the same note be struck again; a control before the note-on acts on the note that starts at that tick.
 
-- Tempo events have `track_index = -1`, channel 0, pitch 0.
+- Tempo and signature events have `track_index = -1`, channel 0, pitch 0, sequence number 0.
 - Controls have pitch 0, so within a tick they keep the order in which they were generated.
-- `sequence_number` is a **per-track** counter starting at 0. It is assigned after ties, walking through the elements of the track in expansion order (bars in playing order; inside a bar, parts and elements in written order; the steps of a pattern in order): every control event takes one number (a ramp: one per event); every note takes two consecutive ones, note-on and note-off; the notes of a chord in written order, those of a group or a voicing in the order of the tones. A note merged by a tie is numbered in the place of its first note. `at` events are numbered **after** all other events of the track, in file order.
+- `sequence_number` is a **per-track** counter starting at 0. It is assigned after ties, walking through the elements of the track **voice by voice** (all of voice 0, then all of voice 1, and so on), each in expansion order (bars in playing order; inside a bar, parts and elements in written order; the steps of a pattern in order): every control event takes one number (a ramp: one per event); every note takes two consecutive ones, note-on and note-off; the notes of a chord in written order, those of a group or a voicing in the order of the tones. A note merged by a tie is numbered in the place of its first note. `at` events are numbered **after** all other events of the track, in file order.
 
 A compiler must never rely on the implicit order of dictionaries, sets or libraries: it builds the list and sorts it with this key.
 
@@ -587,11 +615,15 @@ Format: a JSON array on a single line, followed by exactly one newline. Every ev
 | `type` | Fields |
 |---|---|
 | `tempo` | `bpm`, `tick`, `type` |
+| `meter` | `den`, `num`, `tick`, `type` |
+| `key` | `mi`, `sf`, `tick`, `type` |
 | `note_on` | `ch`, `pitch`, `tick`, `track`, `type`, `vel` |
 | `note_off` | `ch`, `pitch`, `tick`, `track`, `type` |
 | `cc` | `ch`, `controller`, `tick`, `track`, `type`, `value` |
 | `bend` | `ch`, `tick`, `track`, `type`, `value` |
 | `lyric` | `text`, `tick`, `track`, `type` |
+
+The time and key signatures at tick 0 are not events: like the title and the programs, they are part of the start of the MIDI file (§16). `meter` and `key` events exist only after tick 0, with `sf` and `mi` as in the table of §16.
 
 ```
 [{"bpm":120,"tick":0,"type":"tempo"},{"ch":1,"pitch":60,"tick":0,"track":"P","type":"note_on","vel":80},{"ch":1,"pitch":60,"tick":1728,"track":"P","type":"note_off"}]
@@ -603,9 +635,9 @@ Format: a JSON array on a single line, followed by exactly one newline. Every ev
 - `MThd`: length 6, format 1, number of tracks = 1 + number of declared `track`s, division `0x01E0`.
 - **Track 0 (conductor)**, at tick 0 in this order:
   1. Track Name `FF 03` with the `title`, if present (UTF-8);
-  2. Time Signature `FF 58 04 nn dd 18 08`: `nn` numerator, `dd` log2 of the denominator;
-  3. Key Signature `FF 59 02 sf mi`, if `key` is present (table below);
-  4. the Set Tempo events `FF 51 03 tttttt`, each at its tick. Value: `60000000 // bpm` microseconds per quarter note, on 3 bytes.
+  2. Time Signature `FF 58 04 nn dd 18 08` of the meter at tick 0: `nn` numerator, `dd` log2 of the denominator;
+  3. Key Signature `FF 59 02 sf mi` of the key at tick 0, if there is one (table below);
+  4. the Set Tempo events `FF 51 03 tttttt`, each at its tick. Value: `60000000 // bpm` microseconds per quarter note, on 3 bytes. Since 1.1 the Time Signature and Key Signature events after tick 0 are written here too, with the same bytes as above, all in the order of §15.1.
 - One MIDI track per `track`, in declaration order. At tick 0: Track Name `FF 03` with the LOMA name, then Program Change `Cn pp` (not for `drums`), then the events of the track in the order of §15.1.
 - Encoding, with `n` = channel − 1:
 
@@ -700,6 +732,7 @@ Each version is a superset of the previous one: a file that is valid in one vers
 | **0.2** | `ccN=`, `bend=` and ramps; velocity ramp `v=N>M`; `swing`; content on several lines; segments with `\|`; lists `use A,B`; `pattern ... from`; quintuplets `q` and tuplets `xA/B`; `repeat` blocks |
 | **0.3** | Extended chords; inversions `^K`; bass `/X` and tone `0`; tones `9 11 16 18`; octave marks; `voicing` and `*NAME` |
 | **1.0** | Lyrics `"..."`; numeric pitches `mN`; `at` with `cc`, `bend`, lyric and `tempo` |
+| **1.1** | Bar options `meter=` and `key=`; `at` with `meter` and `key`; several voices on one track |
 
 ## 19. Complete example
 

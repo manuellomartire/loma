@@ -1,0 +1,25 @@
+loma 1.1
+tempo 120
+meter 4/4
+track P ch=1 program=0
+track Q ch=2 program=0
+section a
+  bar C
+    P: C4/2
+  bar C meter=3/4 tempo=x
+    P: C4/2.
+  bar C
+    P: C4/2
+  bar C meter=4/4
+    P: C4/2
+end
+section b
+  bar C
+    P: C4/2
+  bar Zz
+    P: C4/2
+  bar C
+    P: C4/2
+end
+play a
+play b

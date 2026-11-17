@@ -58,7 +58,8 @@ NOISE = list(" \t/{}[]()|~#=>:*\"+-.,0123456789abcdrxmvotCEG") + ["\n", "è", "e
 class Gen:
     def __init__(self, rng):
         self.r = rng
-        self.allow = {2: True, 3: True, 10: True}
+        self.allow = {2: True, 3: True, 10: True, 11: True}
+        self.cur_len = 1920
         self.drums_now = False
 
     def has(self, rank):
@@ -198,8 +199,15 @@ class Gen:
                 out.append(indent + "end")
                 continue
             n = self.pick([1, 1, 1, 2, 2, 3, 4])
-            length = meter_len
             head = "%sbar %s" % (indent, " ".join(self.chord() for _ in range(n)))
+            if self.chance(0.12) and self.has(11):          # the meter changes from this bar to the end of the section
+                num, den = self.pick([(4, 4), (3, 4), (6, 8), (2, 4), (5, 8), (3, 4)] if self.chance(0.97) else [(0, 4), (3, 5), (65, 4)])
+                head += " meter=%d/%d" % (num, den)
+                if 1 <= num <= 64 and den in (1, 2, 4, 8, 16, 32, 64):
+                    self.cur_len = num * (1920 // den)
+            if self.chance(0.08) and self.has(11):
+                head += " key=" + self.pick(["C", "Dm", "F#", "Bbm", "Eb"] if self.chance(0.97) else ["H", "G#"])
+            length = self.cur_len
             if self.chance(0.1):
                 spec = self.pick(self.durs + ["#%d" % self.r.randint(1, 3000)])
                 head += " len=/" + spec
@@ -209,9 +217,16 @@ class Gen:
                 if self.chance(0.6):
                     head += ">%d" % self.r.randint(4, 400)
             out.append(head)
+            lines = []
             for name, drums in tracks:
                 if self.chance(0.25):
                     continue
+                lines.append((name, drums))
+                while self.chance(0.2) and self.has(11):   # another voice on the same track
+                    lines.append((name, drums))
+            if lines and self.chance(0.2):
+                self.r.shuffle(lines)
+            for name, drums in lines:
                 prefix = "%s  %s%s: " % (indent, name, self.attrs(True))
                 if n > 1 and self.chance(0.35) and length % n == 0 and self.has(2):
                     parts = []
@@ -234,9 +249,9 @@ class Gen:
                         out.append(prefix + " ".join(toks))
 
     def song(self):
-        version = self.pick(["0.1", "0.2", "0.3", "1.0", "1.0", "1.0"])
-        rank = {"0.1": 1, "0.2": 2, "0.3": 3, "1.0": 10}[version]
-        self.allow = {r: rank >= r or self.chance(0.05) for r in (2, 3, 10)}   # sometimes too new: E020
+        version = self.pick(["0.1", "0.2", "0.3", "1.0", "1.0", "1.1", "1.1", "1.1"])
+        rank = {"0.1": 1, "0.2": 2, "0.3": 3, "1.0": 10, "1.1": 11}[version]
+        self.allow = {r: rank >= r or self.chance(0.05) for r in (2, 3, 10, 11)}   # sometimes too new: E020
         out = ["loma " + version]
         if self.chance(0.5):
             out.append('title "%s"' % self.pick(["Test", "È qui", "a # b"]))
@@ -274,6 +289,7 @@ class Gen:
         for i in range(self.r.randint(1, 3)):
             names.append("s%d" % i)
             out.append("section s%d" % i)
+            self.cur_len = meter_len                # every section starts in the meter of the header
             self.bars(meter_len, tracks, 0, out, "  ")
             out.append("end")
         for _ in range(self.r.randint(1, 3)):
@@ -291,6 +307,9 @@ class Gen:
             out.append("at %d %s %s" % (self.r.randint(0, 20000), name, what))
         if self.chance(0.2) and self.has(10):
             out.append("at %d tempo=%d" % (self.r.randint(0, 9000), self.r.randint(4, 400)))
+        for _ in range(self.r.randint(0, 2) if self.has(11) and self.chance(0.3) else 0):
+            out.append("at %d %s" % (self.pick([0, 0, 480, 1920, self.r.randint(0, 9000)]),
+                                     self.pick(["meter=3/4", "meter=7/8", "meter=4/4", "key=Dm", "key=A", "key=C", "meter=9/3", "key=Q"])))
         text = "\n".join(out) + "\n"
         if self.chance(0.25):
             chars = list(text)

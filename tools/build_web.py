@@ -19,7 +19,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 EXAMPLES = [("First example", None), ("Brano 1 - Lanterna", "brano1.loma"), ("Brano 2 - Mulino", "brano2.loma"),
-            ("Brano 3 - Faro", "brano3.loma"), ("Showcase", "showcase.loma")]
+            ("Brano 3 - Faro", "brano3.loma"), ("Carillon (LOMA 1.1)", "carillon.loma"), ("Showcase", "showcase.loma")]
 
 SITE = "https://manuellomartire.github.io/loma/"
 DESCRIPTION = ("Write music as text and hear it: LOMA is a language made for AIs that always compiles "

@@ -1,0 +1,25 @@
+loma 1.1
+title "Signatures"
+tempo 120
+meter 4/4
+key G
+track P ch=1 program=0
+
+section a
+  bar C
+    P: C4/1
+  bar C meter=3/4 key=D
+    P: C4/2.
+  bar C
+    P: C4/2.
+end
+
+play a
+at 0 meter=2/4           # replaces the signature of the header in the MIDI file
+at 0 key=Am
+at 1920 meter=5/8        # replaces the signature written by the bar at this tick
+at 480 key=F#m
+at 480 tempo=90
+at 480 meter=7/8
+at 480 meter=7/16        # the last one wins
+at 9999 key=Cb

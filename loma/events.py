@@ -1,7 +1,7 @@
 """Event model, canonical ordering and canonical JSON."""
 import json
 
-ORDER = {"tempo": 0, "note_off": 1, "cc": 2, "bend": 2, "lyric": 2, "note_on": 3}
+ORDER = {"meter": -2, "key": -1, "tempo": 0, "note_off": 1, "cc": 2, "bend": 2, "lyric": 2, "note_on": 3}
 
 
 class Event:
@@ -23,6 +23,12 @@ class Event:
         d = {"tick": self.tick, "type": self.kind}
         if self.kind == "tempo":
             d["bpm"] = self.data["bpm"]
+            return d
+        if self.kind == "meter":
+            d["num"], d["den"] = self.data["num"], self.data["den"]
+            return d
+        if self.kind == "key":
+            d["sf"], d["mi"] = self.data["sf"], self.data["mi"]
             return d
         d["track"] = track_names[self.track]
         if self.kind == "lyric":

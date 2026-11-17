@@ -22,6 +22,14 @@ def _track_bytes(events, end_tick):
     return _chunk(b"MTrk", bytes(out))
 
 
+def _time_signature(num, den):
+    return _meta(0x58, bytes([num, den.bit_length() - 1, 24, 8]))
+
+
+def _key_signature(sf, mi):
+    return _meta(0x59, bytes([sf & 0xFF, mi]))
+
+
 def _encode(e, status):
     if e.kind == "note_on":
         return bytes([0x90 | status, e.pitch, e.data["vel"]])
@@ -38,18 +46,20 @@ def _encode(e, status):
 def write_midi(compiled):
     song = compiled.song
     end = compiled.end_tick
-    num, den = song.meter
 
     conductor = []
     if song.title is not None:
         conductor.append((0, _meta(0x03, song.title.encode("utf-8"))))
-    conductor.append((0, _meta(0x58, bytes([num, den.bit_length() - 1, 24, 8]))))
-    if song.key is not None:
-        sf, mi = song.key
-        conductor.append((0, _meta(0x59, bytes([sf & 0xFF, mi]))))
+    conductor.append((0, _time_signature(*compiled.meter)))
+    if compiled.key is not None:
+        conductor.append((0, _key_signature(*compiled.key)))
     for e in compiled.events:
         if e.kind == "tempo":
             conductor.append((e.tick, _meta(0x51, bpm_to_us(e.data["bpm"]).to_bytes(3, "big"))))
+        elif e.kind == "meter":
+            conductor.append((e.tick, _time_signature(e.data["num"], e.data["den"])))
+        elif e.kind == "key":
+            conductor.append((e.tick, _key_signature(e.data["sf"], e.data["mi"])))
 
     per_track = [[] for _ in song.tracks]
     for e in compiled.events:

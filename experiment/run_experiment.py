@@ -6,7 +6,8 @@ Layout of the submissions:
     experiment/submissions/MODEL/PIECE/attempt1.loma
     experiment/submissions/MODEL/PIECE/attempt2.loma      (after the errors of attempt 1), ...
 
-PIECE is brano1, brano2 or brano3. The last attempt is the final answer.
+PIECE is brano1, brano2 or brano3 for the three assigned pieces; any other name (for example 'free')
+is a piece without an assignment. The last attempt is the final answer.
 
     python3 experiment/run_experiment.py                  # prints the report and writes results.md / results.json
 
@@ -28,7 +29,6 @@ from loma.api import compile_text, sha256
 from loma.errors import LomaErrors
 from loma.events import canonical_json
 from loma.expander import flatten
-from loma.model import WHOLE
 from loma.parser import parse
 
 REQUIREMENTS = {
@@ -60,10 +60,8 @@ def analyse(text):
     with_notes = sorted({e.track for e in compiled.events if e.kind == "note_on"})
     velocities = {e.data["vel"] for e in compiled.events if e.kind == "note_on"}
     events = canonical_json(compiled.events, compiled.track_names)
-    meter_len = song.meter[0] * (WHOLE // song.meter[1])
     return {
         "bars": bars,
-        "bars_by_length": compiled.end_tick // meter_len,
         "instruments": len(with_notes),
         "patterns": bool(re.search(r":\s*use\s", text) or re.search(r"\|\s*use\s", text)),
         "two_chord_bars": two_chord,
@@ -128,6 +126,8 @@ def report(results):
     for r in results:
         if r["final_valid"]:
             consegna = "met" if not r["unmet_requirements"] else "; ".join(r["unmet_requirements"])
+            if r["piece"] not in REQUIREMENTS:
+                consegna = "free piece"
             lines.append("| %s | %s | %d | %s | yes | %d | %d | %d | %d | %d | %d | %s | %s | to be rated | to be rated |" % (
                 r["model"], r["piece"], r["attempts"], "yes" if r["valid_at_first_attempt"] else "no", r["bars"],
                 r["instruments"], r["notes"], r["loma_bytes"], r["midi_bytes"], r["events_json_bytes"],
@@ -148,11 +148,16 @@ def report(results):
     models = sorted({r["model"] for r in results})
     lines += ["", "## Coverage", "",
               "Models present: %s." % (", ".join(models) if models else "none")]
+    lines.append("")
     if models == ["reference"]:
-        lines.append("")
         lines.append("Only the `reference` pieces are present, written by the author of the specification and of the compiler: "
                      "they are not an independent measurement. The experiment is complete when there are pieces by other models, "
                      "written starting only from `experiment/prompt.md` or `experiment/prompt.it.md`.")
+    else:
+        assigned = sorted({r["model"] for r in results if r["model"] != "reference" and r["piece"] in REQUIREMENTS})
+        lines.append("The `reference` pieces are written by the author of the specification and of the compiler: they are not "
+                     "an independent measurement. Models with at least one of the three assigned pieces: %s."
+                     % (", ".join(assigned) if assigned else "none yet"))
     return "\n".join(lines) + "\n"
 
 

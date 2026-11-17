@@ -26,7 +26,7 @@ def source(path):
 class Reference(unittest.TestCase):
     def test_valid_cases_byte_for_byte(self):
         paths = sorted(glob.glob(os.path.join(ROOT, "conformance", "valid", "*.loma")))
-        self.assertGreaterEqual(len(paths), 90)
+        self.assertGreaterEqual(len(paths), 100)
         for path in paths:
             base = path[:-5]
             compiled, midi = compile_text(source(path))
@@ -39,7 +39,7 @@ class Reference(unittest.TestCase):
 
     def test_error_cases(self):
         paths = sorted(glob.glob(os.path.join(ROOT, "conformance", "errors", "*.loma")))
-        self.assertGreaterEqual(len(paths), 100)
+        self.assertGreaterEqual(len(paths), 120)
         for path in paths:
             with open(path[:-5] + ".errors.json", encoding="utf-8") as f:
                 expected = [(e["code"], e["line"]) for e in json.load(f)]

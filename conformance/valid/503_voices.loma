@@ -1,0 +1,27 @@
+loma 1.1
+tempo 90
+meter 4/4
+track Pno ch=1 program=0
+track Kit drums
+pattern arp base=3 dur=/8 : 1 3 5 3
+
+section a
+  bar C
+    Pno{v=90}: E5/2 G5/2~
+    Pno{v=60}: use arp
+    Pno{v=40 a=leg}: pedal+ C2/1~
+    Kit: kick/4 kick/4 kick/4 kick/4
+    Kit{v=50}: hat/8 hat/8 hat/8 hat/8 hat/8 hat/8 hat/8 hat/8
+  bar F
+    Pno{v=90}: G5/4 A5/4 C6/2
+    Pno{v=60}: use arp
+    Pno{v=40 a=leg}: C2/2 pedal- F2/2
+    Kit: kick/2 snare/2
+  bar G
+    Pno{v=40}: G2/1
+    Pno{v=90 swing=sw}: B4/8 D5/8 G5/4 "la" F5/2
+end
+
+swing sw grid=/8 : 0 20
+
+play a x2

@@ -164,6 +164,8 @@ class Parser:
         self.skip_bar = False
         self.bar_count = 0
         self.bad_tracks = set()  # names whose 'track' declaration failed
+        self.cur_meter = self.cur_key = None
+        self.meter_lost = False
         self.meter_failed = False
 
     # ------------------------------------------------------------------ helpers
@@ -578,25 +580,32 @@ class Parser:
             raise LomaError("E015", "tempo %d is outside the range 4-400 BPM" % bpm, line)
         self.song.tempo = bpm
 
-    def cmd_meter(self, words, line):
-        self.once("meter", line)
-        m = re.fullmatch(r"([0-9]+)/([0-9]+)", words[1]) if len(words) == 2 else None
+    def meter_value(self, text, line, usage):
+        m = re.fullmatch(r"([0-9]+)/([0-9]+)", text)
         if not m:
-            raise LomaError("E001", "usage: meter N/D, e.g. meter 4/4", line)
+            raise LomaError("E001", usage, line)
         num, den = to_int(m.group(1), line), to_int(m.group(2), line)
         if not 1 <= num <= 64 or den not in VALID_DENOMINATORS:
             raise LomaError("E018", "meter %d/%d is outside the limits (numerator 1-64, denominator 1, 2, 4, 8, 16, 32, 64)" % (num, den), line)
-        self.song.meter = (num, den)
+        return (num, den)
 
-    def cmd_key(self, words, line):
-        self.once("key", line)
-        m = re.fullmatch(r"([A-G][#b]?)(m?)", words[1]) if len(words) == 2 else None
+    def key_value(self, text, line):
+        m = re.fullmatch(r"([A-G][#b]?)(m?)", text)
         if m:
             table = KEY_MINOR if m.group(2) else KEY_MAJOR
             if m.group(1) in table:
-                self.song.key = (table[m.group(1)], 1 if m.group(2) else 0)
-                return
-        raise LomaError("E013", "invalid key '%s' (examples: C, Cm, F#m, Bb)" % (words[1] if len(words) > 1 else ""), line)
+                return (table[m.group(1)], 1 if m.group(2) else 0)
+        raise LomaError("E013", "invalid key '%s' (examples: C, Cm, F#m, Bb)" % text, line)
+
+    def cmd_meter(self, words, line):
+        self.once("meter", line)
+        self.song.meter = self.meter_value(words[1] if len(words) == 2 else "", line, "usage: meter N/D, e.g. meter 4/4")
+
+    def cmd_key(self, words, line):
+        self.once("key", line)
+        if len(words) != 2:
+            raise LomaError("E013", "invalid key '%s' (examples: C, Cm, F#m, Bb)" % (words[1] if len(words) > 1 else ""), line)
+        self.song.key = self.key_value(words[1], line)
 
     def cmd_track(self, words, line):
         try:
@@ -643,6 +652,8 @@ class Parser:
         self.bar = self.tl = None
         self.skip_bar = False
         self.bar_count = 0
+        self.cur_meter = self.cur_key = None    # every section starts in the meter and key of the header
+        self.meter_lost = False
         if len(words) != 2:             # the body is still parsed, but the section is not registered
             raise LomaError("E001", "usage: section NAME", line)
         name = self.new_name(words[1], "section", self.song.sections, line)
@@ -664,7 +675,7 @@ class Parser:
         self.song.plays.append(Play(words[1], times, transpose, line))
 
     def cmd_at(self, code, line):
-        usage = "usage: at TICK TRACK PITCH d=TICKS [v=VEL] | at TICK TRACK ccN=V | at TICK TRACK bend=V | at TICK TRACK \"text\" | at TICK tempo=BPM"
+        usage = "usage: at TICK TRACK PITCH d=TICKS [v=VEL] | at TICK TRACK ccN=V | at TICK TRACK bend=V | at TICK TRACK \"text\" | at TICK tempo=BPM | at TICK meter=N/D | at TICK key=K"
         m = re.fullmatch(r"at[ \t]+([0-9]+)[ \t]+(.+)", code)
         if not m:
             raise LomaError("E001", usage, line)
@@ -681,6 +692,14 @@ class Parser:
             if not 4 <= bpm <= 400:
                 raise LomaError("E015", "tempo %d is outside the range 4-400 BPM" % bpm, line)
             self.song.ats.append(AtEvent("tempo", tick, line, value=bpm))
+            return
+        if rest.startswith("meter="):
+            self.need("1.1", "'at TICK meter=N/D'", line)
+            self.song.ats.append(AtEvent("meter", tick, line, value=self.meter_value(rest[6:], line, usage)))
+            return
+        if rest.startswith("key="):
+            self.need("1.1", "'at TICK key=K'", line)
+            self.song.ats.append(AtEvent("key", tick, line, value=self.key_value(rest[4:], line)))
             return
         tm = re.fullmatch(r"([^ \t]+)(?:[ \t]+(.*))?", rest)
         tail = tm.group(2) or ""
@@ -738,7 +757,25 @@ class Parser:
         self.close_bar()
         self.skip_bar = True            # stays True if this line fails
         self.bar_count += 1
-        chords, len_ticks, tempo = [], None, None
+        chords = []
+        try:
+            len_ticks, tempo, meter, key = self.bar_options(words, line, chords)
+        except LomaError:
+            if any(w.startswith("meter=") for w in words[1:]):
+                self.meter_lost = True  # the bars that follow have an unknown length
+            raise
+        if not chords:
+            raise LomaError("E001", "'bar' needs at least one chord, e.g. 'bar Cm'", line)
+        if meter is not None:
+            self.cur_meter = meter
+        if key is not None:
+            self.cur_key = key
+        self.bar = Bar(chords, len_ticks, tempo, [], line, self.bar_count, self.cur_meter, self.cur_key, self.meter_lost)
+        self.stack[-1].append(self.bar)
+        self.skip_bar = False
+
+    def bar_options(self, words, line, chords):
+        len_ticks, tempo, meter, key = None, None, None, None
         for w in words[1:]:
             if "=" in w:
                 k, v = w.split("=", 1)
@@ -754,15 +791,17 @@ class Parser:
                         if x is not None and not 4 <= x <= 400:
                             raise LomaError("E015", "tempo %d is outside the range 4-400 BPM" % x, line)
                     tempo = (lo, hi)
+                elif k == "meter":
+                    self.need("1.1", "bar option 'meter='", line)
+                    meter = self.meter_value(v, line, "meter option must be meter=N/D, e.g. meter=3/4")
+                elif k == "key":
+                    self.need("1.1", "bar option 'key='", line)
+                    key = self.key_value(v, line)
                 else:
-                    raise LomaError("E001", "unknown bar option '%s' (allowed: len=/D tempo=N tempo=N>M)" % k, line)
+                    raise LomaError("E001", "unknown bar option '%s' (allowed: len=/D tempo=N tempo=N>M meter=N/D key=K)" % k, line)
             else:
                 chords.append(self.chord(w, line))
-        if not chords:
-            raise LomaError("E001", "'bar' needs at least one chord, e.g. 'bar Cm'", line)
-        self.bar = Bar(chords, len_ticks, tempo, [], line, self.bar_count)
-        self.stack[-1].append(self.bar)
-        self.skip_bar = False
+        return len_ticks, tempo, meter, key
 
     def cmd_repeat(self, words, line):
         self.close_bar()
@@ -827,10 +866,11 @@ class Parser:
             raise LomaError("E001", "track line before any 'bar'", line)
         name, attr_text, content = m.group(1), m.group(2), m.group(3)
         track = self.track_by_name(name, line)
-        if any(tl.track is track for tl in self.bar.track_lines):
-            raise LomaError("E001", "track %s already has a line in this bar" % name, line)
+        voice = sum(1 for tl in self.bar.track_lines if tl.track is track)
+        if voice and self.version < VERSIONS["1.1"]:
+            raise LomaError("E001", "track %s already has a line in this bar (several voices on one track need 'loma 1.1')" % name, line)
         attrs = self.parse_attrs(attr_text[1:-1], line, True) if attr_text else {}
-        tl = TrackLine(track, attrs, [Part()], line)
+        tl = TrackLine(track, attrs, [Part()], line, False, voice)
         self.bar.track_lines.append(tl)
         self.tl = tl
         self.add_content(tl, content, line)

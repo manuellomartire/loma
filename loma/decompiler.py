@@ -58,7 +58,8 @@ def decompile(data):
             raise DecompileError("the file is longer than the LOMA maximum of %d ticks" % MAX_TICK)
         return t
 
-    title = meter = key = None
+    title = None
+    meters, keys = {}, {}             # tick -> last signature written at that tick
     tempos, channels, names, lyrics = {}, {}, {}, {}
     silent, open_notes = [], {}
     end = 0
@@ -77,13 +78,9 @@ def decompile(data):
                     else:
                         names[ti] = _text(b)
                 elif a == 0x58 and len(b) >= 2:
-                    if meter is None:
-                        meter = (b[0], 1 << b[1])
-                    elif meter != (b[0], 1 << b[1]):
-                        dropped.add("time signature changes")
+                    meters[t] = (b[0], 1 << b[1])
                 elif a == 0x59 and len(b) >= 2:
-                    if key is None:
-                        key = (b[0] - 256 if b[0] > 127 else b[0], b[1])
+                    keys[t] = (b[0] - 256 if b[0] > 127 else b[0], b[1])
                 elif a == 0x51 and len(b) == 3:
                     tempos[t] = int.from_bytes(b, "big")
                 elif a == 0x05:
@@ -128,20 +125,30 @@ def decompile(data):
         owners.setdefault(info.track, []).append(info.ch)
     decl = [((info.track, info.ch), names.get(info.track) if len(owners[info.track]) == 1 else None, info.ch)
             for info in channels.values()]
-    empty_drums = False
+    empty_drums = None                # MIDI track taken as a drums track without notes
     for ti in silent:
-        if ti in names and 10 not in channels and not empty_drums:
+        if ti in names and 10 not in channels and empty_drums is None:
             decl.append(((ti, 0), names[ti], None))
-            empty_drums = True
+            empty_drums = ti
         elif ti in names:
             dropped.add("empty tracks")
     decl.sort(key=lambda d: d[0])
     for ti in lyrics:
-        if len(owners.get(ti, ())) != 1:
+        if len(owners.get(ti, ())) != 1 and ti != empty_drums:
             dropped.add("lyrics in tracks that do not own exactly one channel")
 
     # ---- header
-    out = ["loma 1.0"]
+    def valid_meter(m):
+        return 1 <= m[0] <= 64 and m[1] in VALID_DENOMINATORS
+
+    meter, key = meters.pop(0, None), keys.pop(0, None)
+    meter_ats = [(t, meters[t]) for t in sorted(meters) if valid_meter(meters[t])]
+    key_ats = [(t, keys[t]) for t in sorted(keys) if keys[t] in _KEY_NAMES]
+    if len(meter_ats) < len(meters):
+        dropped.add("unsupported time signatures")
+    if len(key_ats) < len(keys):
+        dropped.add("invalid key signature")
+    out = ["loma 1.1" if meter_ats or key_ats else "loma 1.0"]
     if title is not None:
         out.append('title "%s"' % title)
     first_us = tempos.pop(0, None)
@@ -155,7 +162,7 @@ def decompile(data):
         out.append("tempo %d" % bpm)
     if meter is None:
         meter = (4, 4)
-    elif not (1 <= meter[0] <= 64 and meter[1] in VALID_DENOMINATORS):
+    elif not valid_meter(meter):
         warnings.append("time signature %d/%d is not supported: 4/4 used" % meter)
         meter = (4, 4)
     out.append("meter %d/%d" % meter)
@@ -196,8 +203,11 @@ def decompile(data):
         if not exact:
             warnings.append("tempo %d us per quarter at tick %d is not an integer BPM: %d BPM used" % (tempos[t], t, bpm))
         out.append("at %d tempo=%d" % (t, bpm))
+    out.extend("at %d meter=%d/%d" % (t, m[0], m[1]) for t, m in meter_ats)
+    out.extend("at %d key=%s" % (t, _KEY_NAMES[k]) for t, k in key_ats)
     for order, wanted, ch in decl:
-        if ch is None:
+        if ch is None:                # the drums track without notes: it can still carry lyrics
+            out.extend('at %d %s "%s"' % (t, track_names[10], text) for t, seq, text in sorted(lyrics.get(order[0], ())))
             continue
         info, name = channels[ch], track_names[ch]
         lines, starts = [], set()
